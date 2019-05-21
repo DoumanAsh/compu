@@ -16,7 +16,7 @@ fn fetch_brotli_if() {
     fs::create_dir(BROTLI_DIR).expect("To create dir");
 
     let res = Command::new("git").arg("clone")
-                                 .arg("git@github.com:google/brotli.git")
+                                 .arg("https://github.com/google/brotli.git")
                                  .arg("--branch")
                                  .arg("v1.0")
                                  .arg("--single-branch")
