@@ -6,6 +6,8 @@ edition = "2018"
 keywords = ["brotli"]
 description = "Rust Compression library with generic interface"
 license = "Apache-2.0"
+repository = "https://github.com/DoumanAsh/compu"
+documentation = "https://docs.rs/crate/compu"
 
 [dependencies]
 compu-brotli-sys = { version = "0.1", path = "../compu-brotli-sys/", optional = true }
