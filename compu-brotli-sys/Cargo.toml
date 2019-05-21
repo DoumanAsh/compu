@@ -1,0 +1,19 @@
+[package]
+name = "compu-brotli-sys"
+version = "0.1.0"
+authors = ["Douman <douman@gmx.se>"]
+edition = "2018"
+keywords = ["brotli"]
+description = "Bindings to brotli C library"
+license = "Apache-2.0"
+
+[build-dependencies.bindgen]
+version = "0.43"
+optional = true
+
+[build-dependencies]
+cc = "1"
+
+[features]
+# Used internally to generate lib.rs
+build-bindgen = ["bindgen"]
