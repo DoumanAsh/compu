@@ -1,6 +1,6 @@
-//!High level Decompression API
+//!In-memory decompressor.
 
-use super::decoder::{DecoderResult, Decoder};
+use crate::decoder::{DecoderResult, Decoder};
 
 ///Decompressor
 ///
@@ -9,11 +9,12 @@ use super::decoder::{DecoderResult, Decoder};
 ///Result can be retrieved using `output` or `take`.
 ///
 ///## Usage
+///
 ///```rust,no_run
 ///use compu::decoder::{Decoder, DecoderResult, BrotliDecoder};
 ///
 ///let data = vec![5; 5];
-///let mut decoder = compu::Decompressor::new(BrotliDecoder::default());
+///let mut decoder = compu::decompressor::memory::Decompressor::new(BrotliDecoder::default());
 ///
 ///let result = decoder.push(&data);
 ///
@@ -35,8 +36,8 @@ impl<D: Decoder> Decompressor<D> {
         }
     }
 
-    ///Returns underlying decoder
-    pub fn inner(&self) -> &D {
+    ///Returns reference to underlying decoder
+    pub fn decoder(&self) -> &D {
         &self.decoder
     }
 

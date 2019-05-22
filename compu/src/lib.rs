@@ -9,8 +9,12 @@
 //!
 //! ## High-level API
 //!
-//! - [Compressor](compressor/struct.Compressor.html) - Uses `Encoder` to compress data into internal buffer.
-//! - [Decompressor](decompressor/struct.Decompressor.html) - Uses `Decoder` to decompress data into external buffer.
+//! - In-memory
+//!     - [Compressor](compressor/memory/struct.Compressor.html) - Uses `Encoder` to compress data into internal buffer.
+//!     - [Decompressor](decompressor/memory/struct.Decompressor.html) - Uses `Decoder` to decompress data into external buffer.
+//! - Write interface
+//!     - [Compressor](compressor/write/struct.Compressor.html) - Uses `Encoder` to compress data into supplied writer.
+//!     - [Decompressor](decompressor/write/struct.Decompressor.html) - Uses `Decoder` to decompress data into supplied writer.
 //!
 //! ## Cargo Features
 //!
@@ -24,6 +28,3 @@ pub mod encoder;
 pub mod decoder;
 pub mod compressor;
 pub mod decompressor;
-
-pub use compressor::Compressor;
-pub use decompressor::Decompressor;

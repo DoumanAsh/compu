@@ -63,20 +63,36 @@ fn should_compress_data_high() {
         print!("DATA set {}: ", idx);
         let data = DATA[idx];
 
-        let mut encoder = compu::Compressor::new(BrotliEncoder::default());
+        let mut encoder = compu::compressor::memory::Compressor::new(BrotliEncoder::default());
         let result = encoder.push(data, true);
         assert!(result);
-        assert!(encoder.inner().is_finished());
+        assert!(encoder.encoder().is_finished());
         let data_compressed = encoder.output();
 
-        let mut decoder = compu::Decompressor::new(BrotliDecoder::default());
+        let mut encoder = compu::compressor::write::Compressor::new(BrotliEncoder::default(), Vec::new());
+        let result = encoder.push(data, true).expect("Successful write compression");
+        assert!(result);
+        assert!(encoder.encoder().is_finished());
+        let data_compressed_write = encoder.take();
+        assert_eq!(data_compressed_write, data_compressed);
+
+        let mut decoder = compu::decompressor::memory::Decompressor::new(BrotliDecoder::default());
 
         let result = decoder.push(data_compressed);
 
         assert_eq!(result, DecoderResult::Finished);
         assert_eq!(decoder.output().len(), data.len());
         assert!(decoder.output() == data);
-        assert!(decoder.inner().is_finished());
+        assert!(decoder.decoder().is_finished());
+
+        let mut decoder = compu::decompressor::write::Decompressor::new(BrotliDecoder::default(), Vec::new());
+        let result = decoder.push(data_compressed).expect("Successful write decompression");
+        assert_eq!(result, DecoderResult::Finished);
+        assert!(decoder.decoder().is_finished());
+        let output = decoder.take();
+        assert_eq!(output.len(), data.len());
+        assert!(output == data);
+
         println!("Ok");
     }
 }
@@ -87,7 +103,7 @@ fn should_decompress_data_high() {
         print!("DATA set {}: ", idx);
         let data = DATA[idx];
         let data_compressed = DATA_COMPRESSED[idx];
-        let mut decoder = compu::Decompressor::new(BrotliDecoder::default());
+        let mut decoder = compu::decompressor::memory::Decompressor::new(BrotliDecoder::default());
 
         let result = decoder.push(data_compressed);
 

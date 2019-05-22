@@ -1,6 +1,5 @@
-//! Compression module
-
-use super::encoder::{Encoder};
+//!In-memory compressor.
+use crate::encoder::{Encoder};
 
 use core::slice;
 use core::cmp;
@@ -17,10 +16,10 @@ use core::cmp;
 ///use compu::encoder::{Encoder, BrotliEncoder};
 ///
 ///let data = vec![5; 5];
-///let mut encoder = compu::Compressor::new(BrotliEncoder::default());
+///let mut encoder = compu::compressor::memory::Compressor::new(BrotliEncoder::default());
 ///let result = encoder.push(&data, true);
 ///assert!(result);
-///assert!(encoder.inner().is_finished());
+///assert!(encoder.encoder().is_finished());
 ///```
 pub struct Compressor<E> {
     encoder: E,
@@ -39,7 +38,7 @@ impl<E: Encoder> Compressor<E> {
     }
 
     ///Returns reference to underlying encoder
-    pub fn inner(&self) -> &E {
+    pub fn encoder(&self) -> &E {
         &self.encoder
     }
 

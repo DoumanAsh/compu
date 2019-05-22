@@ -8,10 +8,8 @@ description = "Bindings to brotli C library"
 license = "Apache-2.0"
 repository = "https://github.com/DoumanAsh/compu"
 documentation = "https://docs.rs/crate/compu-brotli-sys"
-include = [
-    "**/*.rs",
-    "Cargo.toml",
-    "README.md"
+exclude = [
+    "brotli/"
 ]
 
 [build-dependencies.bindgen]
