@@ -1,4 +1,4 @@
-//!In-memory decompressor.
+//!Writer decompressor.
 
 use crate::decoder::{DecoderResult, Decoder};
 

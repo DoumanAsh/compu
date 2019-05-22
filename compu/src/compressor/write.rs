@@ -1,4 +1,4 @@
-//!In-memory compressor.
+//!Writer compressor.
 
 use crate::encoder::{Encoder};
 
