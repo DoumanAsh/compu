@@ -88,11 +88,17 @@ fn should_compress_data_high() {
         print!("DATA set {}: ", idx);
         let data = DATA[idx];
 
+        let mut data_compressed = Vec::new();
+
         let mut encoder = compu::compressor::memory::Compressor::new(BrotliEncoder::default());
-        let result = encoder.push(data, EncoderOp::Finish);
+        let result = encoder.push(&data[..data.len()/2], EncoderOp::Process);
+        assert!(result);
+        assert!(!encoder.encoder().is_finished());
+        data_compressed.extend_from_slice(encoder.consume_output());
+        let result = encoder.push(&data[data.len()/2..], EncoderOp::Finish);
         assert!(result);
         assert!(encoder.encoder().is_finished());
-        let data_compressed = encoder.output();
+        data_compressed.extend_from_slice(encoder.consume_output());
 
         let mut encoder = compu::compressor::write::Compressor::new(BrotliEncoder::default(), Vec::new());
         let result = encoder.push(data, EncoderOp::Finish).expect("Successful write compression");
@@ -103,7 +109,7 @@ fn should_compress_data_high() {
 
         let mut decoder = compu::decompressor::memory::Decompressor::new(BrotliDecoder::default());
 
-        let result = decoder.push(data_compressed);
+        let result = decoder.push(&data_compressed);
 
         assert_eq!(result, DecoderResult::Finished);
         assert_eq!(decoder.output().len(), data.len());
@@ -111,7 +117,7 @@ fn should_compress_data_high() {
         assert!(decoder.decoder().is_finished());
 
         let mut decoder = compu::decompressor::write::Decompressor::new(BrotliDecoder::default(), Vec::new());
-        let result = decoder.push(data_compressed).expect("Successful write decompression");
+        let result = decoder.push(&data_compressed).expect("Successful write decompression");
         assert_eq!(result, DecoderResult::Finished);
         assert!(decoder.decoder().is_finished());
         let output = decoder.take();
@@ -128,13 +134,23 @@ fn should_decompress_data_high() {
         print!("DATA set {}: ", idx);
         let data = DATA[idx];
         let data_compressed = DATA_COMPRESSED[idx];
+        let mut data_decompressed = Vec::with_capacity(data.len());
+
         let mut decoder = compu::decompressor::memory::Decompressor::new(BrotliDecoder::default());
 
-        let result = decoder.push(data_compressed);
+        let result = decoder.push(&data_compressed[..data_compressed.len()/2]);
 
+        assert_eq!(result, DecoderResult::NeedInput);
+        data_decompressed.extend_from_slice(decoder.consume_output());
+        assert_eq!(decoder.output().len(), 0);
+
+        let result = decoder.push(&data_compressed[data_compressed.len()/2..]);
         assert_eq!(result, DecoderResult::Finished);
-        assert_eq!(decoder.output().len(), data.len());
-        assert!(decoder.output() == data);
+        data_decompressed.extend_from_slice(decoder.consume_output());
+        assert_eq!(decoder.output().len(), 0);
+
+        assert_eq!(data_decompressed, data);
+
         println!("Ok");
     }
 }

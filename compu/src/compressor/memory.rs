@@ -81,6 +81,19 @@ impl<E: Encoder> Compressor<E> {
         &self.output
     }
 
+    ///Returns slice of currently decompressed data and marks it as consumed
+    ///
+    ///After calling this function, the underlying buffer basically sets length equal to 0
+    ///allowing to overwrite already written data with further pushes.
+    pub fn consume_output<'a>(&'a mut self) -> &'a [u8] {
+        let len = self.output.len();
+
+        unsafe {
+            self.output.set_len(0);
+            core::slice::from_raw_parts(self.output.as_ptr(), len)
+        }
+    }
+
     ///Consumes self and returns underlying data.
     pub fn take(self) -> Vec<u8> {
         self.output
