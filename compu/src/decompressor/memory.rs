@@ -22,7 +22,6 @@ use crate::decoder::{DecoderResult, Decoder};
 ///```
 pub struct Decompressor<D> {
     decoder: D,
-    offset: usize,
     output: Vec<u8>,
 }
 
@@ -31,7 +30,6 @@ impl<D: Decoder> Decompressor<D> {
     pub fn new(decoder: D) -> Self {
         Self {
             decoder,
-            offset: 0,
             output: Vec::with_capacity(1024),
         }
     }
@@ -50,15 +48,15 @@ impl<D: Decoder> Decompressor<D> {
     ///Any other variants indicates error.
     pub fn push(&mut self, mut data: &[u8]) -> DecoderResult {
         loop {
+            let offset = self.output.len();
             let output_slice = unsafe {
-                core::slice::from_raw_parts_mut(self.output.as_mut_ptr().offset(self.offset as isize), self.output.capacity() - self.offset)
+                core::slice::from_raw_parts_mut(self.output.as_mut_ptr().offset(offset as isize), self.output.capacity() - offset)
             };
 
             let (remaining_input, remaining_output, result) = self.decoder.decode(data, output_slice);
             let consumed_output = output_slice.len() - remaining_output;
-            self.offset += consumed_output;
             unsafe {
-                self.output.set_len(self.offset);
+                self.output.set_len(offset + consumed_output);
             }
 
             match result {

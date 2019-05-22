@@ -23,7 +23,6 @@ use core::cmp;
 ///```
 pub struct Compressor<E> {
     encoder: E,
-    offset: usize,
     output: Vec<u8>,
 }
 
@@ -32,7 +31,6 @@ impl<E: Encoder> Compressor<E> {
     pub fn new(encoder: E) -> Self {
         Self {
             encoder,
-            offset: 0,
             output: Vec::with_capacity(0),
         }
     }
@@ -52,15 +50,15 @@ impl<E: Encoder> Compressor<E> {
         self.output.reserve(size_hint);
 
         loop {
+            let offset = self.output.len();
             let output_slice = unsafe {
-                slice::from_raw_parts_mut(self.output.as_mut_ptr().offset(self.offset as isize), self.output.capacity() - self.offset)
+                slice::from_raw_parts_mut(self.output.as_mut_ptr().offset(offset as isize), self.output.capacity() - offset)
             };
 
             let (remaining_input, remaining_output, result) = self.encoder.encode(data, output_slice, op);
             let consumed_output = output_slice.len() - remaining_output;
-            self.offset += consumed_output;
             unsafe {
-                self.output.set_len(self.offset);
+                self.output.set_len(offset + consumed_output);
             }
 
             if result == false {
