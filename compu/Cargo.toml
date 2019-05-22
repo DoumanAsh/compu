@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 keywords = ["brotli"]
+categories = ["compression"]
 description = "Rust Compression library with generic interface"
 license = "Apache-2.0"
 repository = "https://github.com/DoumanAsh/compu"
