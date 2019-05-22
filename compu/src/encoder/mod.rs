@@ -5,6 +5,21 @@ pub mod brotli;
 #[cfg(feature = "brotli-c")]
 pub use brotli::BrotliEncoder;
 
+#[derive(Copy, Clone, PartialEq)]
+///Encoder operation
+pub enum EncoderOp {
+    ///Just compress as usual.
+    Process,
+    ///Flush as much data as possible
+    ///
+    ///Potentially may incur overhead
+    Flush,
+    ///Finish compression.
+    ///
+    ///After issuing FINISH, no new data should be added.
+    Finish,
+}
+
 ///Describes compression interface
 pub trait Encoder: Sized {
     ///Encoder options
@@ -18,8 +33,8 @@ pub trait Encoder: Sized {
     ///Returns tuple that contains: remaining input to process, remaining output buffer size and
     ///whether encode is successful.
     ///
-    ///Use `finish` to specify last chunk
-    fn encode(&mut self, input: &[u8], output: &mut [u8], finish: bool) -> (usize, usize,  bool);
+    ///Use `op` equal to `EncoderOp::Finish` to specify last chunk
+    fn encode(&mut self, input: &[u8], output: &mut [u8], op: EncoderOp) -> (usize, usize,  bool);
 
     ///Retrieves currently buffered output, that hasn't been written yet.
     ///

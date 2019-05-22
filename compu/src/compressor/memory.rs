@@ -1,5 +1,5 @@
 //!In-memory compressor.
-use crate::encoder::{Encoder};
+use crate::encoder::{Encoder, EncoderOp};
 
 use core::slice;
 use core::cmp;
@@ -7,17 +7,17 @@ use core::cmp;
 ///Compressor
 ///
 ///It stores compressed data in its internal buffer.
-///Once last chunk is pushed, by calling `push` with `finish` equal to `true`
+///Once last chunk is pushed, by calling `push` with `op` equal to `EncoderOp::FINISH`
 ///Result can be retrieved using `output` or `take`.
 ///
 ///## Usage
 ///
 ///```rust,no_run
-///use compu::encoder::{Encoder, BrotliEncoder};
+///use compu::encoder::{Encoder, EncoderOp, BrotliEncoder};
 ///
 ///let data = vec![5; 5];
 ///let mut encoder = compu::compressor::memory::Compressor::new(BrotliEncoder::default());
-///let result = encoder.push(&data, true);
+///let result = encoder.push(&data, EncoderOp::Finish);
 ///assert!(result);
 ///assert!(encoder.encoder().is_finished());
 ///```
@@ -44,10 +44,10 @@ impl<E: Encoder> Compressor<E> {
 
     ///Pushes chunk to compressor
     ///
-    ///Specify `finish` when last chunk is being pushed
+    ///Specify `op` as `EncoderOp::Finish` when last chunk is being pushed
     ///
     ///Returns whether operation is successful.
-    pub fn push(&mut self, mut data: &[u8], finish: bool) -> bool {
+    pub fn push(&mut self, mut data: &[u8], op: EncoderOp) -> bool {
         let size_hint = self.encoder.compress_size_hint(data.len());
         self.output.reserve(size_hint);
 
@@ -56,7 +56,7 @@ impl<E: Encoder> Compressor<E> {
                 slice::from_raw_parts_mut(self.output.as_mut_ptr().offset(self.offset as isize), self.output.capacity() - self.offset)
             };
 
-            let (remaining_input, remaining_output, result) = self.encoder.encode(data, output_slice, finish);
+            let (remaining_input, remaining_output, result) = self.encoder.encode(data, output_slice, op);
             let consumed_output = output_slice.len() - remaining_output;
             self.offset += consumed_output;
             unsafe {

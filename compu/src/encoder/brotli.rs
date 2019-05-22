@@ -4,6 +4,8 @@ pub use compu_brotli_sys as sys;
 
 use core::ptr;
 
+use super::EncoderOp;
+
 #[derive(Copy, Clone)]
 ///Encoding mode
 pub enum BrotliEncoderMode {
@@ -82,15 +84,16 @@ impl super::Encoder for BrotliEncoder {
         }
     }
 
-    fn encode(&mut self, input: &[u8], output: &mut [u8], finish: bool) -> (usize, usize,  bool) {
+    fn encode(&mut self, input: &[u8], output: &mut [u8], op: EncoderOp) -> (usize, usize,  bool) {
         let mut avail_in = input.len();
         let mut avail_out = output.len();
         let mut input_ptr = input.as_ptr();
         let mut output_ptr = output.as_mut_ptr();
 
-        let op = match finish {
-            true => sys::BrotliEncoderOperation_BROTLI_OPERATION_FINISH,
-            false => sys::BrotliEncoderOperation_BROTLI_OPERATION_PROCESS,
+        let op = match op {
+            EncoderOp::Process => sys::BrotliEncoderOperation_BROTLI_OPERATION_PROCESS,
+            EncoderOp::Flush => sys::BrotliEncoderOperation_BROTLI_OPERATION_FLUSH,
+            EncoderOp::Finish => sys::BrotliEncoderOperation_BROTLI_OPERATION_FINISH,
         };
 
         let result = unsafe {

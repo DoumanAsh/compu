@@ -1,5 +1,7 @@
 use compu::decoder::{Decoder, DecoderResult, BrotliDecoder};
-use compu::encoder::{Encoder, BrotliEncoder};
+use compu::encoder::{Encoder, EncoderOp, BrotliEncoder};
+
+use std::io::Write;
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
@@ -11,6 +13,29 @@ const DATA_COMPRESSED: [&[u8]; 2] = [
 ];
 
 #[test]
+fn should_auto_finish_compressor() {
+    for idx in 0..DATA.len() {
+        println!("DATA set {}:\n", idx);
+        let data = DATA[idx];
+
+        let mut compressed = Vec::new();
+
+        let mut encoder = compu::compressor::write::Compressor::new(BrotliEncoder::default(), &mut compressed).auto_finish();
+        encoder.write(data).expect("Successful write compression");
+        assert!(!encoder.encoder().is_finished());
+
+        drop(encoder);
+
+        let mut decompressed = Vec::new();
+        let mut decoder = compu::decompressor::write::Decompressor::new(BrotliDecoder::default(), &mut decompressed);
+        decoder.write(&compressed).expect("Successful write compression");
+        assert!(decoder.decoder().is_finished());
+
+        assert_eq!(decompressed, data);
+    }
+}
+
+#[test]
 fn should_compress_data() {
     for idx in 0..DATA.len() {
         println!("DATA set {}:\n", idx);
@@ -19,7 +44,7 @@ fn should_compress_data() {
         let mut encoder = BrotliEncoder::default();
         let mut compressed = vec![0; encoder.compress_size_hint(data.len())];
 
-        let (remaining_input, remaining_output, result) = encoder.encode(data, compressed.as_mut(), true);
+        let (remaining_input, remaining_output, result) = encoder.encode(data, compressed.as_mut(), EncoderOp::Finish);
         //Remove extra
         compressed.truncate(compressed.len() - remaining_output);
 
@@ -64,14 +89,14 @@ fn should_compress_data_high() {
         let data = DATA[idx];
 
         let mut encoder = compu::compressor::memory::Compressor::new(BrotliEncoder::default());
-        let result = encoder.push(data, true);
+        let result = encoder.push(data, EncoderOp::Finish);
         assert!(result);
         assert!(encoder.encoder().is_finished());
         let data_compressed = encoder.output();
 
         let mut encoder = compu::compressor::write::Compressor::new(BrotliEncoder::default(), Vec::new());
-        let result = encoder.push(data, true).expect("Successful write compression");
-        assert!(result);
+        let result = encoder.push(data, EncoderOp::Finish).expect("Successful write compression");
+        assert!(result > 0);
         assert!(encoder.encoder().is_finished());
         let data_compressed_write = encoder.take();
         assert_eq!(data_compressed_write, data_compressed);

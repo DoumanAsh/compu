@@ -12,7 +12,7 @@
 //! - In-memory
 //!     - [Compressor](compressor/memory/struct.Compressor.html) - Uses `Encoder` to compress data into internal buffer.
 //!     - [Decompressor](decompressor/memory/struct.Decompressor.html) - Uses `Decoder` to decompress data into external buffer.
-//! - Write interface
+//! - Blocking Write interface
 //!     - [Compressor](compressor/write/struct.Compressor.html) - Uses `Encoder` to compress data into supplied writer.
 //!     - [Decompressor](decompressor/write/struct.Decompressor.html) - Uses `Decoder` to decompress data into supplied writer.
 //!
