@@ -39,7 +39,7 @@ pub trait Decoder: Sized {
 
     ///Retrieves currently buffered output, that hasn't been written yet.
     ///
-    ///Some decoders like `brotli` will assume it as consumed after accessing it.
+    ///Returned bytes MUST be marked as consumed by implementation.
     fn output<'a>(&'a mut self) -> Option<&'a [u8]>;
 
     ///Returns whether encoder has finished.
