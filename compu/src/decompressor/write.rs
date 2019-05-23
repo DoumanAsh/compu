@@ -71,11 +71,26 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
     ///then compressed data will be lost
     pub fn push(&mut self, mut data: &[u8]) -> io::Result<DecoderResult> {
         let result = loop {
-            let (remaining_input, _, result) = self.decoder.decode(data, &mut []);
+            let (remaining_input, result) = match D::HAS_INTERNAL_BUFFER {
+                true => {
+                    let (remaining_input, _, result) = self.decoder.decode(data, &mut []);
 
-            if let Some(output) = self.decoder.output() {
-                self.writer.write_all(output)?;
-            }
+                    if let Some(output) = self.decoder.output() {
+                        self.writer.write_all(output)?;
+                    }
+
+                    (remaining_input, result)
+                },
+                false => {
+                    let mut buffer = [0; 1024];
+                    let (remaining_input, remaining_output, result) = self.decoder.decode(data, &mut buffer);
+
+                    let consumed_output = buffer.len() - remaining_output;
+                    self.writer.write_all(&buffer[..consumed_output])?;
+
+                    (remaining_input, result)
+                }
+            };
 
             match result {
                 DecoderResult::NeedOutput => {
@@ -97,16 +112,31 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
 }
 
 impl<D: Decoder, W: Write> Write for Decompressor<D, W> {
-    #[inline(always)]
     fn write(&mut self, mut data: &[u8]) -> io::Result<usize> {
         let mut written_len = 0;
         loop {
-            let (remaining_input, _, result) = self.decoder.decode(data, &mut []);
+            let (remaining_input, result) = match D::HAS_INTERNAL_BUFFER {
+                true => {
+                    let (remaining_input, _, result) = self.decoder.decode(data, &mut []);
 
-            if let Some(output) = self.decoder.output() {
-                written_len += output.len();
-                self.writer.write_all(output)?;
-            }
+                    if let Some(output) = self.decoder.output() {
+                        written_len += output.len();
+                        self.writer.write_all(output)?;
+                    }
+
+                    (remaining_input, result)
+                },
+                false => {
+                    let mut buffer = [0; 1024];
+                    let (remaining_input, remaining_output, result) = self.decoder.decode(data, &mut buffer);
+
+                    let consumed_output = buffer.len() - remaining_output;
+                    written_len += consumed_output;
+                    self.writer.write_all(&buffer[..consumed_output])?;
+
+                    (remaining_input, result)
+                },
+            };
 
             match result {
                 DecoderResult::NeedInput | DecoderResult::Finished => break,

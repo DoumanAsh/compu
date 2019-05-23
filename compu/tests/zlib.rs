@@ -43,10 +43,11 @@ fn zlib_should_decompress_data() {
 
         assert_eq!(decoder.output(), data);
 
-        let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::default());
-        let result = decoder.push(data_gzip);
+        let mut written_output = Vec::new();
+        let mut decoder = compu::decompressor::write::Decompressor::new(ZlibDecoder::default(), &mut written_output);
+        let result = decoder.push(data_gzip).expect("To write decompressed data");
         assert_eq!(result, DecoderResult::Finished);
-        assert_eq!(decoder.output(), data);
+        assert_eq!(written_output, data);
     }
 }
 
@@ -57,17 +58,12 @@ fn zlib_should_compress_data() {
         let data = DATA[idx];
 
         //Deflate
-        let mut encoder = ZlibEncoder::default();
-        let mut output = vec![0; data.len()];
+        let mut output = Vec::new();
+        let mut encoder = compu::compressor::write::Compressor::new(ZlibEncoder::default(), &mut output);
 
-        let (remaining_input, remaining_output, result) = encoder.encode(data, output.as_mut(), EncoderOp::Finish);
-        assert_eq!(result, true);
-        assert_eq!(remaining_input, 0);
-        assert!(encoder.is_finished());
-        let written_len = output.len() - remaining_output;
-        unsafe {
-            output.set_len(written_len);
-        }
+        let written = encoder.push(data, EncoderOp::Finish).expect("To write compressed data");
+        assert!(written > 0);
+        assert!(encoder.encoder().is_finished());
 
         let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::default());
         let result = decoder.push(&output);

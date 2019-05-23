@@ -66,15 +66,44 @@ impl<E: Encoder, W: Write> Compressor<E, W> {
     pub fn push(&mut self, mut data: &[u8], op: EncoderOp) -> io::Result<usize> {
         let mut written_len = 0;
         loop {
-            let (remaining_input, _, result) = self.encoder.encode(data, &mut [], op);
-            if result == false {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to compress"));
-            }
+            let remaining_input = match E::HAS_INTERNAL_BUFFER {
+                true => {
+                    let (remaining_input, _, result) = self.encoder.encode(data, &mut [], op);
 
-            if let Some(output) = self.encoder.output() {
-                written_len += output.len();
-                self.writer.write_all(output)?;
-            }
+                    if result == false {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to compress"));
+                    }
+
+                    if let Some(output) = self.encoder.output() {
+                        written_len += output.len();
+                        self.writer.write_all(output)?;
+                    }
+
+                    remaining_input
+                },
+                false => loop {
+                    let mut buffer = [0; 1024];
+                    let (remaining_input, remaining_output, result) = self.encoder.encode(data, &mut buffer, op);
+
+                    if result == false {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to compress"));
+                    }
+
+                    let consumed_output = buffer.len() - remaining_output;
+                    written_len += consumed_output;
+                    self.writer.write_all(&buffer[..consumed_output])?;
+
+                    //If remaining_output is zero, we might need to write some extra.
+                    //So we should probably fill writer via temp buffer until it is not ready
+                    //as in case of zlib we can leave unfinished when remaining_input is 0
+                    if remaining_output > 0 {
+                        break remaining_input;
+                    } else {
+                        let consumed_input = data.len() - remaining_input;
+                        data = &data[consumed_input..];
+                    }
+                },
+            };
 
             match remaining_input {
                 0 => break,
