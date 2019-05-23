@@ -107,7 +107,7 @@ impl super::Encoder for ZlibEncoder {
         let max_bits = match opts.mode {
             ZlibMode::Deflate => 15,
             ZlibMode::Zlib => -15,
-            ZlibMode::Gzip => 15 | 16,
+            ZlibMode::Gzip => 15 + 16,
         };
 
         let strategy = match opts.strategy {
@@ -150,6 +150,7 @@ impl super::Encoder for ZlibEncoder {
         let remaining_input = self.state.avail_in as usize;
         let remaining_output = self.state.avail_out as usize;
 
+        println!("remaining_input={} | remaining_output={}, result={}", remaining_input, remaining_output, result);
         let result = match result {
             sys::Z_STREAM_END => {
                 self.is_finished = true;

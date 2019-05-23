@@ -30,7 +30,7 @@ impl super::Decoder for BrotliDecoder {
     const HAS_INTERNAL_BUFFER: bool = true;
     type Options = ();
 
-    fn new(_: ()) -> Self {
+    fn new(_: &Self::Options) -> Self {
         let state = unsafe {
             sys::BrotliDecoderCreateInstance(None, None, ptr::null_mut())
         };

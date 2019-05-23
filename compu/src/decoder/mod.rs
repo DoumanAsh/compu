@@ -32,7 +32,7 @@ pub trait Decoder: Sized {
     type Options: Default;
 
     ///Creates new instance using provided options.
-    fn new(opts: Self::Options) -> Self;
+    fn new(opts: &Self::Options) -> Self;
 
     ///Pushes data to into decompression stream, while writing it out in `output`
     ///
@@ -54,6 +54,6 @@ pub trait Decoder: Sized {
     ///Creates new instance using default `Options`
     #[inline(always)]
     fn default() -> Self {
-        Self::new(Self::Options::default())
+        Self::new(&Self::Options::default())
     }
 }

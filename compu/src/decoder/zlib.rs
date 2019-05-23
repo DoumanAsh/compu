@@ -55,14 +55,14 @@ impl super::Decoder for ZlibDecoder {
     const HAS_INTERNAL_BUFFER: bool = false;
     type Options = ZlibOptions;
 
-    fn new(options: Self::Options) -> Self {
+    fn new(options: &Self::Options) -> Self {
         let mut state = unsafe { mem::zeroed() };
 
         let max_bits = match options.mode {
-            ZlibMode::Auto => 15 | 32,
+            ZlibMode::Auto => 15 + 32,
             ZlibMode::Deflate => 15,
             ZlibMode::Zlib => -15,
-            ZlibMode::Gzip => 15 | 16,
+            ZlibMode::Gzip => 15 + 16,
         };
 
         let result = unsafe {
