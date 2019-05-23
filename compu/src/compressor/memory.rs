@@ -46,7 +46,10 @@ impl<E: Encoder> Compressor<E> {
     ///
     ///Returns whether operation is successful.
     pub fn push(&mut self, mut data: &[u8], op: EncoderOp) -> bool {
-        let size_hint = self.encoder.compress_size_hint(data.len());
+        let size_hint = match self.encoder.compress_size_hint(data.len()) {
+            0 => data.len() / 3,
+            size => size,
+        };
         self.output.reserve(size_hint);
 
         loop {

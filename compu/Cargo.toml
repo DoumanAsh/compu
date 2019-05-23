@@ -12,7 +12,9 @@ documentation = "https://docs.rs/crate/compu"
 
 [dependencies]
 compu-brotli-sys = { version = "0.1", path = "../compu-brotli-sys/", optional = true }
+cloudflare-zlib-sys = { version = "0.2", optional = true }
 
 [features]
-default = ["brotli-c"]
+default = ["brotli-c", "zlib"]
 brotli-c = ["compu-brotli-sys"]
+zlib = ["cloudflare-zlib-sys"]

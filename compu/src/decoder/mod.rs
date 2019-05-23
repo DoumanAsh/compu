@@ -4,6 +4,10 @@
 pub mod brotli;
 #[cfg(feature = "brotli-c")]
 pub use brotli::BrotliDecoder;
+#[cfg(feature = "zlib")]
+pub mod zlib;
+#[cfg(feature = "zlib")]
+pub use zlib::ZlibDecoder;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Result of decoding
@@ -22,6 +26,8 @@ pub enum DecoderResult {
 
 ///Describes decompression interface
 pub trait Decoder: Sized {
+    ///Specifies whether decoder has own internal buffer.
+    const HAS_INTERNAL_BUFFER: bool;
     ///Decoder options
     type Options: Default;
 

@@ -27,6 +27,7 @@ pub struct BrotliDecoder {
 }
 
 impl super::Decoder for BrotliDecoder {
+    const HAS_INTERNAL_BUFFER: bool = true;
     type Options = ();
 
     fn new(_: ()) -> Self {
@@ -54,7 +55,7 @@ impl super::Decoder for BrotliDecoder {
         }
     }
 
-    fn decode(&mut self, input: &[u8], output: &mut [u8]) -> (usize, usize,  DecoderResult) {
+    fn decode(&mut self, input: &[u8], output: &mut [u8]) -> (usize, usize, DecoderResult) {
         let mut avail_in = input.len();
         let mut avail_out = output.len();
         let mut input_ptr = input.as_ptr();
