@@ -68,6 +68,7 @@ pub struct BrotliEncoder {
 }
 
 impl super::Encoder for BrotliEncoder {
+    const HAS_INTERNAL_BUFFER: bool = true;
     type Options = BrotliOptions;
 
     fn new(opts: &Self::Options) -> Self {

@@ -26,6 +26,8 @@ pub enum EncoderOp {
 
 ///Describes compression interface
 pub trait Encoder: Sized {
+    ///Specifies whether encoder has own internal buffer.
+    const HAS_INTERNAL_BUFFER: bool;
     ///Encoder options
     type Options: Default;
 

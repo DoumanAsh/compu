@@ -98,6 +98,7 @@ pub struct ZlibEncoder {
 }
 
 impl super::Encoder for ZlibEncoder {
+    const HAS_INTERNAL_BUFFER: bool = false;
     type Options = ZlibOptions;
 
     fn new(opts: &Self::Options) -> Self {
