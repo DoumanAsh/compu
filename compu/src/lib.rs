@@ -19,7 +19,7 @@
 //! ## Cargo Features
 //!
 //! - `brotli-c` - Enables brotli via C library. Default on.
-//! - `zlib` - Enables zlib via [cloudflare-zlib-sys](https://crates.io/crates/cloudflare-zlib-sys. Default on.
+//! - `zlib` - Enables zlib via [cloudflare-zlib-sys](https://crates.io/crates/cloudflare-zlib-sys). Default on.
 //!
 
 #![warn(missing_docs)]
