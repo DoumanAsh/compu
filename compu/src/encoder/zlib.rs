@@ -71,7 +71,9 @@ impl ZlibOptions {
     #[inline]
     ///Sets zlib compression in range from 1 to 9
     ///
-    ///Defaults to -1 (which is default in zlib)
+    ///Defaults to 9.
+    ///
+    ///Use `-1` for zlib default.
     pub fn compression(mut self, compression: i8) -> Self {
         self.compression = compression;
         self
@@ -82,7 +84,7 @@ impl Default for ZlibOptions {
     fn default() -> Self {
         Self {
             mode: Default::default(),
-            compression: -1,
+            compression: 9,
             strategy: Default::default(),
         }
     }
