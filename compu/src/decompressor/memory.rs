@@ -26,11 +26,17 @@ pub struct Decompressor<D> {
 }
 
 impl<D: Decoder> Decompressor<D> {
+    #[inline]
     ///Creates new instance
     pub fn new(decoder: D) -> Self {
+        Self::with_capacity(1024, decoder)
+    }
+
+    ///Creates new instance with provided capacity
+    pub fn with_capacity(capacity: usize, decoder: D) -> Self {
         Self {
             decoder,
-            output: Vec::with_capacity(1024),
+            output: Vec::with_capacity(capacity),
         }
     }
 

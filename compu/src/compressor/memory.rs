@@ -27,11 +27,17 @@ pub struct Compressor<E> {
 }
 
 impl<E: Encoder> Compressor<E> {
+    #[inline]
     ///Creates new instance
     pub fn new(encoder: E) -> Self {
+        Self::with_capacity(0, encoder)
+    }
+
+    ///Creates new instance with provided capacity
+    pub fn with_capacity(capacity: usize, encoder: E) -> Self {
         Self {
             encoder,
-            output: Vec::with_capacity(0),
+            output: Vec::with_capacity(capacity),
         }
     }
 
