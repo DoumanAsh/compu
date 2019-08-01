@@ -1,6 +1,18 @@
 //! Zlib decoder
 
+#[cfg(feature = "zlib-opt")]
 use cloudflare_zlib_sys as sys;
+#[cfg(not(feature = "zlib-opt"))]
+mod sys {
+    pub use libz_sys::*;
+    use std::os::raw::c_int;
+
+    #[inline(always)]
+    #[allow(non_snake_case)]
+    pub unsafe fn inflateInit2(strm: z_streamp, window_bits: c_int) -> c_int {
+        inflateInit2_(strm, window_bits, libz_sys::zlibVersion(), core::mem::size_of::<z_stream>() as c_int)
+    }
+}
 
 use super::DecoderResult;
 
@@ -47,6 +59,9 @@ impl ZlibOptions {
 ///Zlib doesn't have internal buffers so decoder can use
 ///own buffer to compensate, but it is not necessary
 pub struct ZlibDecoder {
+    #[cfg(not(feature = "zlib-opt"))]
+    state: &'static mut sys::z_stream,
+    #[cfg(feature = "zlib-opt")]
     state: sys::z_stream,
     is_finished: bool,
 }
@@ -56,15 +71,23 @@ impl super::Decoder for ZlibDecoder {
     type Options = ZlibOptions;
 
     fn new(options: &Self::Options) -> Self {
+        #[cfg(not(feature = "zlib-opt"))]
+        let state = Box::leak(Box::new(unsafe { mem::zeroed() }));
+        #[cfg(feature = "zlib-opt")]
         let mut state = unsafe { mem::zeroed() };
 
         let max_bits = match options.mode {
             ZlibMode::Auto => 15 + 32,
-            ZlibMode::Deflate => 15,
-            ZlibMode::Zlib => -15,
+            ZlibMode::Deflate => -15,
+            ZlibMode::Zlib => 15,
             ZlibMode::Gzip => 15 + 16,
         };
 
+        #[cfg(not(feature = "zlib-opt"))]
+        let result = unsafe {
+            sys::inflateInit2(state, max_bits)
+        };
+        #[cfg(feature = "zlib-opt")]
         let result = unsafe {
             sys::inflateInit2(&mut state, max_bits)
         };
@@ -88,6 +111,11 @@ impl super::Decoder for ZlibDecoder {
         self.state.avail_in = input.len() as u32;
         self.state.next_in = input.as_ptr() as *mut _;
 
+        #[cfg(not(feature = "zlib-opt"))]
+        let result = unsafe {
+            sys::inflate(self.state, 0)
+        };
+        #[cfg(feature = "zlib-opt")]
         let result = unsafe {
             sys::inflate(&mut self.state, 0)
         };
@@ -123,7 +151,13 @@ impl super::Decoder for ZlibDecoder {
 impl Drop for ZlibDecoder {
     fn drop(&mut self) {
         unsafe {
+            #[cfg(feature = "zlib-opt")]
             sys::inflateEnd(&mut self.state);
+
+            #[cfg(not(feature = "zlib-opt"))]
+            sys::inflateEnd(self.state);
+            #[cfg(not(feature = "zlib-opt"))]
+            Box::from_raw(self.state);
         }
     }
 }

@@ -29,3 +29,8 @@ steps:
 
   - script: cargo test --all
     displayName: Cargo test
+
+  - script: |
+      cd compu
+      cargo test zlib --features zlib-opt
+    displayName: Cargo zlib-opt

@@ -4,9 +4,9 @@
 pub mod brotli;
 #[cfg(feature = "brotli-c")]
 pub use brotli::BrotliEncoder;
-#[cfg(feature = "zlib")]
+#[cfg(any(feature = "zlib", feature = "zlib-opt"))]
 pub mod zlib;
-#[cfg(feature = "zlib")]
+#[cfg(any(feature = "zlib", feature = "zlib-opt"))]
 pub use zlib::ZlibEncoder;
 
 #[derive(Copy, Clone, PartialEq)]

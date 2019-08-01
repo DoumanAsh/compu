@@ -1,6 +1,5 @@
-use compu::decoder::{Decoder, DecoderResult, ZlibDecoder};
-use compu::encoder::{Encoder, ZlibEncoder, EncoderOp};
-use compu::{encoder};
+use compu::decoder::{self, Decoder, DecoderResult, ZlibDecoder};
+use compu::encoder::{self, Encoder, ZlibEncoder, EncoderOp};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
@@ -57,7 +56,7 @@ fn zlib_should_compress_data() {
         println!("DATA set {}:\n", idx);
         let data = DATA[idx];
 
-        //Deflate
+        //Zlib
         let mut output = Vec::new();
         let mut encoder = compu::compressor::write::Compressor::new(ZlibEncoder::default(), &mut output);
 
@@ -66,6 +65,19 @@ fn zlib_should_compress_data() {
         assert!(encoder.encoder().is_finished());
 
         let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::default());
+        let result = decoder.push(&output);
+        assert_eq!(result, DecoderResult::Finished);
+        assert_eq!(decoder.output(), data);
+
+        //Deflate
+        let mut output = Vec::new();
+        let mut encoder = compu::compressor::write::Compressor::new(ZlibEncoder::new(&encoder::zlib::ZlibOptions::default().mode(encoder::zlib::ZlibMode::Deflate)), &mut output);
+
+        let written = encoder.push(data, EncoderOp::Finish).expect("To write compressed data");
+        assert!(written > 0);
+        assert!(encoder.encoder().is_finished());
+
+        let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::new(&decoder::zlib::ZlibOptions::default().mode(decoder::zlib::ZlibMode::Deflate)));
         let result = decoder.push(&output);
         assert_eq!(result, DecoderResult::Finished);
         assert_eq!(decoder.output(), data);
