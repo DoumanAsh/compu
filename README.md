@@ -1,6 +1,6 @@
 # コンプ(compu)
 
-[![Build Status](https://dev.azure.com/DoumanAsh/compu/_apis/build/status/DoumanAsh.compu?branchName=master)](https://dev.azure.com/DoumanAsh/compu/_build/latest?definitionId=1&branchName=master)
+[![Actions Status](https://github.com/DoumanAsh/compu/workflows/Rust/badge.svg)](https://github.com/DoumanAsh/compu/actions)
 [![Crates.io](https://img.shields.io/crates/v/compu.svg)](https://crates.io/crates/compu)
 [![Documentation](https://docs.rs/compu/badge.svg)](https://docs.rs/crate/compu/)
 
