@@ -1,6 +1,6 @@
 [package]
 name = "compu-brotli-sys"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 keywords = ["brotli"]
@@ -22,3 +22,9 @@ cc = "1"
 [features]
 # Used internally to generate lib.rs
 build-bindgen = ["bindgen"]
+# To disable fetch of source code cuz docs.rs is retarded and blocks network
+# Do not use it
+docs = []
+
+[package.metadata.docs.rs]
+features = ["docs"]

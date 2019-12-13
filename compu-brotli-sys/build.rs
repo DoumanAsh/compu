@@ -113,7 +113,10 @@ fn build() {
 
 
 fn main() {
-    fetch_brotli_if();
-    generate_lib();
-    build();
+    #[cfg(not(feature = "docs"))]
+    {
+        fetch_brotli_if();
+        generate_lib();
+        build();
+    }
 }
