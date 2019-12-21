@@ -71,6 +71,7 @@ impl super::Decoder for ZlibDecoder {
     type Options = ZlibOptions;
 
     fn new(options: &Self::Options) -> Self {
+        #[allow(invalid_value)]
         #[cfg(not(feature = "zlib-opt"))]
         let state = Box::leak(Box::new(unsafe { mem::zeroed() }));
         #[cfg(feature = "zlib-opt")]
@@ -147,6 +148,8 @@ impl super::Decoder for ZlibDecoder {
         self.is_finished
     }
 }
+
+unsafe impl Send for ZlibDecoder {}
 
 impl Drop for ZlibDecoder {
     fn drop(&mut self) {

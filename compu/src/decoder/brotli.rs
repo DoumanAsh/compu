@@ -77,6 +77,8 @@ impl super::Decoder for BrotliDecoder {
     }
 }
 
+unsafe impl Send for BrotliDecoder {}
+
 impl Drop for BrotliDecoder {
     fn drop(&mut self) {
         unsafe {

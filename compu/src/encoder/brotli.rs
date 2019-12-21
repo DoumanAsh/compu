@@ -134,3 +134,13 @@ impl super::Encoder for BrotliEncoder {
         }
     }
 }
+
+unsafe impl Send for BrotliEncoder {}
+
+impl Drop for BrotliEncoder {
+    fn drop(&mut self) {
+        unsafe {
+            sys::BrotliEncoderDestroyInstance(self.state);
+        }
+    }
+}

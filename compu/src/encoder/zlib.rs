@@ -120,6 +120,7 @@ impl super::Encoder for ZlibEncoder {
     type Options = ZlibOptions;
 
     fn new(opts: &Self::Options) -> Self {
+        #[allow(invalid_value)]
         #[cfg(not(feature = "zlib-opt"))]
         let state = Box::leak(Box::new(unsafe { mem::zeroed() }));
         #[cfg(feature = "zlib-opt")]
@@ -211,6 +212,8 @@ impl super::Encoder for ZlibEncoder {
         self.is_finished
     }
 }
+
+unsafe impl Send for ZlibEncoder {}
 
 impl Drop for ZlibEncoder {
     fn drop(&mut self) {
