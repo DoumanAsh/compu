@@ -15,6 +15,9 @@
 //! - Blocking Write interface
 //!     - [Compressor](compressor/write/struct.Compressor.html) - Uses `Encoder` to compress data into supplied writer.
 //!     - [Decompressor](decompressor/write/struct.Decompressor.html) - Uses `Decoder` to decompress data into supplied writer.
+//! - Compression/decompression traits
+//!     - [Compress](compressor/trait.Compress.html) - Describes how to use `Encoder` for to compress.
+//!     - [Decompress](decompressor/trait.Decompress.html) - Describes how to use `Decoder` to decompress.
 //!
 //! ## Cargo Features
 //!

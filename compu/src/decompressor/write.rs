@@ -24,7 +24,7 @@ use std::io::{self, Write};
 ///
 ///let result = decoder.push(&data).expect("Successful decompression");
 ///
-///assert_eq!(result, DecoderResult::Finished);
+///assert_eq!(result.0, DecoderResult::Finished);
 ///assert!(decoder.decoder().is_finished());
 ///```
 pub struct Decompressor<D, W> {
@@ -69,7 +69,8 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
     ///
     ///Returns `io::Error` if underlying writer fails, note that if io::Error happens
     ///then compressed data will be lost
-    pub fn push(&mut self, mut data: &[u8]) -> io::Result<DecoderResult> {
+    pub fn push(&mut self, mut data: &[u8]) -> io::Result<(DecoderResult, usize)> {
+        let mut written_len = 0;
         let result = loop {
             let (remaining_input, result) = match D::HAS_INTERNAL_BUFFER {
                 true => {
@@ -77,6 +78,7 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
 
                     if let Some(output) = self.decoder.output() {
                         self.writer.write_all(output)?;
+                        written_len += output.len();
                     }
 
                     (remaining_input, result)
@@ -86,7 +88,9 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
                     let (remaining_input, remaining_output, result) = self.decoder.decode(data, &mut buffer);
 
                     let consumed_output = buffer.len() - remaining_output;
-                    self.writer.write_all(&buffer[..consumed_output])?;
+                    let output = &buffer[..consumed_output];
+                    self.writer.write_all(output)?;
+                    written_len += output.len();
 
                     (remaining_input, result)
                 }
@@ -101,7 +105,7 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
             }
         };
 
-        Ok(result)
+        Ok((result, written_len))
     }
 
     #[inline]
@@ -112,44 +116,12 @@ impl<D: Decoder, W: Write> Decompressor<D, W> {
 }
 
 impl<D: Decoder, W: Write> Write for Decompressor<D, W> {
-    fn write(&mut self, mut data: &[u8]) -> io::Result<usize> {
-        let mut written_len = 0;
-        loop {
-            let (remaining_input, result) = match D::HAS_INTERNAL_BUFFER {
-                true => {
-                    let (remaining_input, _, result) = self.decoder.decode(data, &mut []);
-
-                    if let Some(output) = self.decoder.output() {
-                        written_len += output.len();
-                        self.writer.write_all(output)?;
-                    }
-
-                    (remaining_input, result)
-                },
-                false => {
-                    let mut buffer = [0; 1024];
-                    let (remaining_input, remaining_output, result) = self.decoder.decode(data, &mut buffer);
-
-                    let consumed_output = buffer.len() - remaining_output;
-                    written_len += consumed_output;
-                    self.writer.write_all(&buffer[..consumed_output])?;
-
-                    (remaining_input, result)
-                },
-            };
-
-            match result {
-                DecoderResult::NeedInput | DecoderResult::Finished => break,
-                DecoderResult::NeedOutput => {
-                    let consumed_input = data.len() - remaining_input;
-                    data = &data[consumed_input..];
-                },
-                DecoderResult::Other(code) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unable to decompress. Error: {}", code))),
-                _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to decompress.")),
-            }
-        };
-
-        Ok(written_len)
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        match self.push(data)? {
+            (DecoderResult::Finished, result) => Ok(result),
+            (DecoderResult::NeedInput, result) => Ok(result),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to decompress")),
+        }
     }
 
     #[inline(always)]
@@ -159,11 +131,10 @@ impl<D: Decoder, W: Write> Write for Decompressor<D, W> {
 
     #[inline(always)]
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.push(buf).and_then(|result| match result {
+        self.push(buf).and_then(|(result, _)| match result {
             DecoderResult::NeedInput | DecoderResult::Finished => Ok(()),
             DecoderResult::Other(code) => Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unable to decompress. Error: {}", code))),
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Unable to decompress.")),
         })
     }
-
 }

@@ -188,10 +188,7 @@ impl super::Encoder for ZlibEncoder {
                 true
             },
             sys::Z_OK | sys::Z_BUF_ERROR => true,
-            other => {
-                println!("Error: {}", other);
-                false
-            },
+            _ => false,
         };
 
         (remaining_input, remaining_output, result)

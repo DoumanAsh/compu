@@ -75,7 +75,9 @@ impl<E: Encoder> Compressor<E> {
             }
 
             match remaining_input {
-                0 => return true,
+                //If user requests finish, we should make sure encoder is finished
+                //The likely scenario is underlying encoder requiring more memory
+                0 if !(op == EncoderOp::Finish && !self.encoder.is_finished()) => return true,
                 remaining_input => {
                     let consumed_input = data.len() - remaining_input;
                     data = &data[consumed_input..];

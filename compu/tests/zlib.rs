@@ -1,5 +1,7 @@
 use compu::decoder::{self, Decoder, DecoderResult, ZlibDecoder};
 use compu::encoder::{self, Encoder, ZlibEncoder, EncoderOp};
+use compu::compressor::Compress;
+use compu::decompressor::Decompress;
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
@@ -41,11 +43,23 @@ fn zlib_should_decompress_data() {
         assert_eq!(result, DecoderResult::Finished);
 
         assert_eq!(decoder.output(), data);
+        let output = data_compressed.decompress(ZlibDecoder::default()).expect("decompress zlib");
+        assert!(output == data);
+        let mut output2 = Vec::new();
+        data_compressed.decompress_into(ZlibDecoder::default(), &mut output2).expect("decompress zlib");
+        assert!(output2 == data);
+
+        let data_compressed_chunks = data_compressed.chunks(5).collect::<Vec<_>>();
+        let output3 = data_compressed_chunks.decompress(ZlibDecoder::default()).expect("decompress chunks zlib");
+        assert!(output3 == data);
+        let mut output4 = Vec::new();
+        data_compressed_chunks.decompress_into(ZlibDecoder::default(), &mut output4).expect("decompress zlib");
+        assert!(output4 == data);
 
         let mut written_output = Vec::new();
         let mut decoder = compu::decompressor::write::Decompressor::new(ZlibDecoder::default(), &mut written_output);
         let result = decoder.push(data_gzip).expect("To write decompressed data");
-        assert_eq!(result, DecoderResult::Finished);
+        assert_eq!(result, (DecoderResult::Finished, data.len()));
         assert_eq!(written_output, data);
     }
 }
@@ -66,6 +80,26 @@ fn zlib_should_compress_data() {
 
         let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::default());
         let result = decoder.push(&output);
+        assert_eq!(result, DecoderResult::Finished);
+        assert_eq!(decoder.output(), data);
+
+        let output2 = data.compress(ZlibEncoder::default()).expect("Compress zlib");
+        assert!(output == output2);
+
+        let mut output3 = Vec::new();
+        data.compress_into(ZlibEncoder::default(), &mut output3).expect("Compress into zlib");
+        assert!(output == output3);
+
+        let data_chunks = data.chunks(5).collect::<Vec<_>>();
+        let output4 = data_chunks.compress(ZlibEncoder::default()).expect("Compress chunks zlib");
+        assert!(output4 == output);
+
+        let mut output5 = Vec::new();
+        data_chunks.compress_into(ZlibEncoder::default(), &mut output5).expect("Compress into chunks zlib");
+        assert!(output5 == output);
+
+        let mut decoder = compu::decompressor::memory::Decompressor::new(ZlibDecoder::default());
+        let result = decoder.push(&output2);
         assert_eq!(result, DecoderResult::Finished);
         assert_eq!(decoder.output(), data);
 

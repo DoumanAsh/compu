@@ -1,5 +1,7 @@
 use compu::decoder::{Decoder, DecoderResult, BrotliDecoder};
 use compu::encoder::{Encoder, EncoderOp, BrotliEncoder};
+use compu::compressor::Compress;
+use compu::decompressor::Decompress;
 
 use std::io::Write;
 
@@ -51,6 +53,21 @@ fn should_compress_data() {
         assert_eq!(result, true);
         assert_eq!(remaining_input, 0);
 
+        let compressed2 = data.compress(BrotliEncoder::default()).expect("Compress brotli");
+        assert!(compressed == compressed2);
+
+        let mut compressed3 = Vec::new();
+        data.compress_into(BrotliEncoder::default(), &mut compressed3).expect("Compress into brotli");
+        assert!(compressed == compressed3);
+
+        let data_chunks = data.chunks(5).collect::<Vec<_>>();
+        let compressed4 = data_chunks.compress(BrotliEncoder::default()).expect("Compress chunks brotli");
+        assert!(compressed4 == compressed);
+
+        let mut compressed5 = Vec::new();
+        data_chunks.compress_into(BrotliEncoder::default(), &mut compressed5).expect("Compress into chunks brotli");
+        assert!(compressed5 == compressed);
+
         let mut decoder = BrotliDecoder::default();
         let mut decompressed = vec![0; data.len()];
 
@@ -79,6 +96,20 @@ fn should_decompress_data() {
         assert_eq!(remaining_input, 0);
         assert_eq!(remaining_output, 0);
         assert_eq!(output, data);
+
+        let output2 = data_compressed.decompress(BrotliDecoder::default()).expect("decompress brotli");
+        assert!(output2 == data);
+        let mut output3 = Vec::new();
+        data_compressed.decompress_into(BrotliDecoder::default(), &mut output3).expect("decompress into brotli");
+        assert!(output3 == data);
+
+        let data_compressed_chunks = data_compressed.chunks(5).collect::<Vec<_>>();
+        let output4 = data_compressed_chunks.decompress(BrotliDecoder::default()).expect("decompress brotli");
+        assert!(output4 == data);
+
+        let mut output5 = Vec::new();
+        data_compressed_chunks.decompress_into(BrotliDecoder::default(), &mut output5).expect("decompress brotli");
+        assert!(output5 == data);
     }
 }
 
@@ -118,7 +149,7 @@ fn should_compress_data_high() {
 
         let mut decoder = compu::decompressor::write::Decompressor::new(BrotliDecoder::default(), Vec::new());
         let result = decoder.push(&data_compressed).expect("Successful write decompression");
-        assert_eq!(result, DecoderResult::Finished);
+        assert_eq!(result, (DecoderResult::Finished, data.len()));
         assert!(decoder.decoder().is_finished());
         let output = decoder.take();
         assert_eq!(output.len(), data.len());
