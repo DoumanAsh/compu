@@ -1,6 +1,6 @@
 [package]
 name = "compu"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 keywords = ["brotli"]
@@ -22,6 +22,8 @@ brotli-c = ["compu-brotli-sys"]
 zlib-opt = ["cloudflare-zlib-sys"]
 #Regular zlib bindings
 zlib = ["libz-sys"]
+#For stupid docs.rs only
+docs = ["compu-brotli-sys/docs"]
 
 [package.metadata.docs.rs]
-features = ["compu-brotli-sys/docs"]
+features = ["docs"]
