@@ -18,7 +18,7 @@ fn fetch_brotli_if() {
     let res = Command::new("git").arg("clone")
                                  .arg("https://github.com/google/brotli.git")
                                  .arg("--branch")
-                                 .arg("v1.0")
+                                 .arg("v1.0.9")
                                  .arg("--single-branch")
                                  .status()
                                  .expect("To execute sh command");
