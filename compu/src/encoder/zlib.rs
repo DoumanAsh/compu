@@ -1,23 +1,9 @@
 //! Zlib encoder
 
-#[cfg(feature = "zlib-opt")]
-use cloudflare_zlib_sys as sys;
-#[cfg(not(feature = "zlib-opt"))]
-mod sys {
-    pub use libz_sys::*;
-    use std::os::raw::c_int;
-    pub const MAX_MEM_LEVEL: c_int = 8;
+use core::ptr;
 
-    #[inline(always)]
-    #[allow(non_snake_case)]
-    pub unsafe fn deflateInit2(strm: z_streamp, level: c_int, method: c_int, window_bits: c_int, mem_level: c_int, strategy: c_int,) -> c_int {
-        deflateInit2_( strm, level, method, window_bits, mem_level, strategy, libz_sys::zlibVersion(), core::mem::size_of::<z_stream>() as c_int)
-    }
-}
-
+use crate::zlib_sys_wrap as sys;
 use super::EncoderOp;
-
-use core::mem;
 
 #[derive(Copy, Clone)]
 ///Compression strategy
@@ -108,11 +94,18 @@ impl Default for ZlibOptions {
 ///Zlib doesn't have internal buffers so decoder can use
 ///own buffer to compensate, but it is not necessary
 pub struct ZlibEncoder {
-    #[cfg(not(feature = "zlib-opt"))]
-    state: &'static mut sys::z_stream,
-    #[cfg(feature = "zlib-opt")]
     state: sys::z_stream,
     is_finished: bool,
+}
+
+impl ZlibEncoder {
+    fn update_state(&mut self) {
+        #[cfg(not(feature = "zlib-opt"))]
+        unsafe {
+            let internal = self.state.state as *mut sys::inflate_state;
+            (*internal).strm = &mut self.state as *mut _;
+        }
+    }
 }
 
 impl super::Encoder for ZlibEncoder {
@@ -120,11 +113,22 @@ impl super::Encoder for ZlibEncoder {
     type Options = ZlibOptions;
 
     fn new(opts: &Self::Options) -> Self {
-        #[allow(invalid_value)]
-        #[cfg(not(feature = "zlib-opt"))]
-        let state = Box::leak(Box::new(unsafe { mem::zeroed() }));
-        #[cfg(feature = "zlib-opt")]
-        let mut state = unsafe { mem::zeroed() };
+        let mut state = sys::z_stream {
+            next_in: ptr::null_mut(),
+            avail_in: 0,
+            total_in: 0,
+            next_out: ptr::null_mut(),
+            avail_out: 0,
+            total_out: 0,
+            msg: ptr::null_mut(),
+            state: ptr::null_mut(),
+            zalloc: crate::utils::compu_custom_alloc,
+            zfree: crate::utils::compu_custom_free,
+            opaque: ptr::null_mut(),
+            data_type: 0,
+            adler: 0,
+            reserved: 0,
+        };
 
         let max_bits = match opts.mode {
             ZlibMode::Deflate => -15,
@@ -140,11 +144,6 @@ impl super::Encoder for ZlibEncoder {
             ZlibStrategy::Fixed => sys::Z_FIXED
         };
 
-        #[cfg(not(feature = "zlib-opt"))]
-        let result = unsafe {
-            sys::deflateInit2(state, opts.compression as i32, sys::Z_DEFLATED, max_bits, sys::MAX_MEM_LEVEL, strategy)
-        };
-        #[cfg(feature = "zlib-opt")]
         let result = unsafe {
             sys::deflateInit2(&mut state, opts.compression as i32, sys::Z_DEFLATED, max_bits, sys::MAX_MEM_LEVEL, strategy)
         };
@@ -170,11 +169,7 @@ impl super::Encoder for ZlibEncoder {
         self.state.avail_in = input.len() as u32;
         self.state.next_in = input.as_ptr() as *mut _;
 
-        #[cfg(not(feature = "zlib-opt"))]
-        let result = unsafe {
-            sys::deflate(self.state, op)
-        };
-        #[cfg(feature = "zlib-opt")]
+        self.update_state();
         let result = unsafe {
             sys::deflate(&mut self.state, op)
         };
@@ -214,14 +209,9 @@ unsafe impl Send for ZlibEncoder {}
 
 impl Drop for ZlibEncoder {
     fn drop(&mut self) {
+        self.update_state();
         unsafe {
-            #[cfg(feature = "zlib-opt")]
             sys::deflateEnd(&mut self.state);
-
-            #[cfg(not(feature = "zlib-opt"))]
-            sys::deflateEnd(self.state);
-            #[cfg(not(feature = "zlib-opt"))]
-            Box::from_raw(self.state);
         }
     }
 }

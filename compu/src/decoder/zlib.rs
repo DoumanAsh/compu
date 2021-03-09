@@ -1,22 +1,9 @@
 //! Zlib decoder
 
-#[cfg(feature = "zlib-opt")]
-use cloudflare_zlib_sys as sys;
-#[cfg(not(feature = "zlib-opt"))]
-mod sys {
-    pub use libz_sys::*;
-    use std::os::raw::c_int;
+use core::ptr;
 
-    #[inline(always)]
-    #[allow(non_snake_case)]
-    pub unsafe fn inflateInit2(strm: z_streamp, window_bits: c_int) -> c_int {
-        inflateInit2_(strm, window_bits, libz_sys::zlibVersion(), core::mem::size_of::<z_stream>() as c_int)
-    }
-}
-
+use crate::zlib_sys_wrap as sys;
 use super::DecoderResult;
-
-use core::{mem};
 
 #[derive(Copy, Clone)]
 ///Decompression mode
@@ -59,11 +46,18 @@ impl ZlibOptions {
 ///Zlib doesn't have internal buffers so decoder can use
 ///own buffer to compensate, but it is not necessary
 pub struct ZlibDecoder {
-    #[cfg(not(feature = "zlib-opt"))]
-    state: &'static mut sys::z_stream,
-    #[cfg(feature = "zlib-opt")]
     state: sys::z_stream,
     is_finished: bool,
+}
+
+impl ZlibDecoder {
+    fn update_state(&mut self) {
+        #[cfg(not(feature = "zlib-opt"))]
+        unsafe {
+            let internal = self.state.state as *mut sys::inflate_state;
+            (*internal).strm = &mut self.state as *mut _;
+        }
+    }
 }
 
 impl super::Decoder for ZlibDecoder {
@@ -71,12 +65,6 @@ impl super::Decoder for ZlibDecoder {
     type Options = ZlibOptions;
 
     fn new(options: &Self::Options) -> Self {
-        #[allow(invalid_value)]
-        #[cfg(not(feature = "zlib-opt"))]
-        let state = Box::leak(Box::new(unsafe { mem::zeroed() }));
-        #[cfg(feature = "zlib-opt")]
-        let mut state = unsafe { mem::zeroed() };
-
         let max_bits = match options.mode {
             ZlibMode::Auto => 15 + 32,
             ZlibMode::Deflate => -15,
@@ -84,16 +72,26 @@ impl super::Decoder for ZlibDecoder {
             ZlibMode::Gzip => 15 + 16,
         };
 
-        #[cfg(not(feature = "zlib-opt"))]
-        let result = unsafe {
-            sys::inflateInit2(state, max_bits)
-        };
-        #[cfg(feature = "zlib-opt")]
-        let result = unsafe {
-            sys::inflateInit2(&mut state, max_bits)
+        let mut state = sys::z_stream {
+            next_in: ptr::null_mut(),
+            avail_in: 0,
+            total_in: 0,
+            next_out: ptr::null_mut(),
+            avail_out: 0,
+            total_out: 0,
+            msg: ptr::null_mut(),
+            state: ptr::null_mut(),
+            zalloc: crate::utils::compu_custom_alloc,
+            zfree: crate::utils::compu_custom_free,
+            opaque: ptr::null_mut(),
+            data_type: 0,
+            adler: 0,
+            reserved: 0,
         };
 
-        assert_eq!(result, 0);
+        unsafe {
+            assert_eq!(sys::inflateInit2(&mut state, max_bits), 0);
+        }
 
         Self {
             state,
@@ -106,23 +104,21 @@ impl super::Decoder for ZlibDecoder {
     }
 
     fn decode(&mut self, input: &[u8], output: &mut [u8]) -> (usize, usize, DecoderResult) {
+        self.update_state();
+
         self.state.avail_out = output.len() as u32;
         self.state.next_out = output.as_mut_ptr();
 
         self.state.avail_in = input.len() as u32;
         self.state.next_in = input.as_ptr() as *mut _;
 
-        #[cfg(not(feature = "zlib-opt"))]
-        let result = unsafe {
-            sys::inflate(self.state, 0)
-        };
-        #[cfg(feature = "zlib-opt")]
         let result = unsafe {
             sys::inflate(&mut self.state, 0)
         };
 
-        let remaining_input = self.state.avail_in as usize;
-        let remaining_output = self.state.avail_out as usize;
+        let (remaining_input, remaining_output) = {
+            (self.state.avail_in as usize, self.state.avail_out as usize)
+        };
 
         let result = match result {
             sys::Z_OK => match remaining_input > 0 {
@@ -153,14 +149,9 @@ unsafe impl Send for ZlibDecoder {}
 
 impl Drop for ZlibDecoder {
     fn drop(&mut self) {
+        self.update_state();
         unsafe {
-            #[cfg(feature = "zlib-opt")]
             sys::inflateEnd(&mut self.state);
-
-            #[cfg(not(feature = "zlib-opt"))]
-            sys::inflateEnd(self.state);
-            #[cfg(not(feature = "zlib-opt"))]
-            Box::from_raw(self.state);
         }
     }
 }

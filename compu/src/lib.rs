@@ -33,3 +33,6 @@ pub mod encoder;
 pub mod decoder;
 pub mod compressor;
 pub mod decompressor;
+mod utils;
+#[cfg(any(feature = "zlib", feature = "zlib-opt"))]
+mod zlib_sys_wrap;
