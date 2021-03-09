@@ -73,7 +73,7 @@ impl super::Encoder for BrotliEncoder {
 
     fn new(opts: &Self::Options) -> Self {
         let state = unsafe {
-            sys::BrotliEncoderCreateInstance(None, None, ptr::null_mut())
+            sys::BrotliEncoderCreateInstance(Some(crate::utils::compu_custom_malloc), Some(crate::utils::compu_custom_free), ptr::null_mut())
         };
 
         assert!(!state.is_null(), "Unable to create brotli encoder");

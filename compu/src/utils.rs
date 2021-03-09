@@ -18,13 +18,8 @@ fn unlikely_null() -> *mut core::ffi::c_void {
 
 const LAYOUT_OFFSET: usize = mem::size_of::<usize>();
 
-pub(crate) unsafe extern "C" fn compu_custom_alloc(_: *mut core::ffi::c_void, items: c_uint, size: c_uint) -> *mut core::ffi::c_void {
-    let size = match (items as usize).checked_mul(size as usize) {
-        Some(0) | None => return unlikely_null(),
-        Some(size) => size + LAYOUT_OFFSET,
-    };
-
-    let layout = match Layout::from_size_align(size, MIN_ALIGN) {
+pub(crate) unsafe extern "C" fn compu_custom_malloc(_: *mut core::ffi::c_void, size: usize) -> *mut core::ffi::c_void {
+    let layout = match Layout::from_size_align(size + LAYOUT_OFFSET, MIN_ALIGN) {
         Ok(layout) => layout,
         _ => return unlikely_null(),
     };
@@ -37,6 +32,14 @@ pub(crate) unsafe extern "C" fn compu_custom_alloc(_: *mut core::ffi::c_void, it
 
     ptr::write(mem as *mut usize, size);
     mem.add(LAYOUT_OFFSET) as _
+}
+
+pub(crate) unsafe extern "C" fn compu_custom_alloc(op: *mut core::ffi::c_void, items: c_uint, size: c_uint) -> *mut core::ffi::c_void {
+    let size = match (items as usize).checked_mul(size as usize) {
+        Some(0) | None => return unlikely_null(),
+        Some(size) => size,
+    };
+    compu_custom_malloc(op, size)
 }
 
 pub(crate) unsafe extern "C" fn compu_custom_free(_: *mut core::ffi::c_void, mem: *mut core::ffi::c_void) {

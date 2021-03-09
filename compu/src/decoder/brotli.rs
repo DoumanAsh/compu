@@ -32,7 +32,7 @@ impl super::Decoder for BrotliDecoder {
 
     fn new(_: &Self::Options) -> Self {
         let state = unsafe {
-            sys::BrotliDecoderCreateInstance(None, None, ptr::null_mut())
+            sys::BrotliDecoderCreateInstance(Some(crate::utils::compu_custom_malloc), Some(crate::utils::compu_custom_free), ptr::null_mut())
         };
 
         assert!(!state.is_null(), "Unable to create brotli decoder");
