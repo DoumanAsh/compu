@@ -55,6 +55,7 @@ fn generate_lib() {
     use std::path::PathBuf;
 
     const PREPEND_LIB: &'static str = "
+#![no_std]
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
@@ -65,6 +66,14 @@ fn generate_lib() {
     let bindings = bindgen::Builder::default().header(format!("{}/brotli/encode.h", include_path))
                                               .header(format!("{}/brotli/decode.h", include_path))
                                               .raw_line(PREPEND_LIB)
+                                              .ctypes_prefix("libc")
+                                              .use_core()
+                                              .generate_comments(false)
+                                              .layout_tests(false)
+                                              .whitelist_type("[bB]rotli.+")
+                                              .whitelist_type("BROTLI.+")
+                                              .whitelist_function("[bB]rotli.+")
+                                              .whitelist_var("[bB]rotli.+")
                                               .clang_arg(format!("-I{}", include_path))
                                               .parse_callbacks(Box::new(ParseCallbacks))
                                               .generate()
