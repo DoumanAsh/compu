@@ -1,5 +1,24 @@
-[workspace]
-members = [
-    "compu",
-    "compu-brotli-sys",
-]
+[package]
+name = "compu"
+version = "0.5.3"
+authors = ["Douman <douman@gmx.se>"]
+edition = "2018"
+keywords = ["brotli"]
+categories = ["compression"]
+description = "Rust Compression library with generic interface"
+license = "Apache-2.0"
+repository = "https://github.com/DoumanAsh/compu"
+documentation = "https://docs.rs/crate/compu"
+
+[dependencies]
+compu-brotli-sys = { version = "1.0.9+1", optional = true }
+cloudflare-zlib-sys = { version = "0.2", optional = true }
+libz-sys = { version = "1", optional = true, features = ["static"] }
+
+[features]
+default = ["brotli-c", "zlib"]
+brotli-c = ["compu-brotli-sys"]
+#Optimized zlib bindings
+zlib-opt = ["cloudflare-zlib-sys"]
+#Regular zlib bindings
+zlib = ["libz-sys"]
