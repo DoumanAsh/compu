@@ -1,11 +1,28 @@
 name: Rust
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/rust.yml'
+      - 'src/**.rs'
+      - 'tests/**.rs'
+      - 'Cargo.toml'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/rust.yml'
+      - 'src/**.rs'
+      - 'tests/**.rs'
+      - 'Cargo.toml'
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
+    if: github.event.pull_request.draft == false
 
     strategy:
       matrix:
@@ -34,15 +51,30 @@ jobs:
             echo ::add-path::%USERPROFILE%\.cargo\bin
         }
 
+    - name: Install Valgrind
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind
+
     - name: Rust version
       run: |
         cargo --version
         rustc --version
 
     - name: Test
-      run: cargo test --all
+      run: cargo test --features brotli-c,zlib-static,zlib-ng,zstd
 
-    - name: Test zlib-opt
+    - name: Check individual features
       run: |
-        cd compu
-        cargo test zlib --features zlib-opt
+        cargo check --features brotli-c
+        cargo check --features zlib
+        cargo check --features zlib-static
+        cargo check --features zlib-ng
+        cargo check --features zstd
+
+    - name: Valgrind Test
+      if: runner.os == 'Linux'
+      env:
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "valgrind --leak-check=full --error-exitcode=1"
+      run: cargo test --release --features brotli-c,zlib-static,zlib-ng,zstd

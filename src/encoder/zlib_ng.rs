@@ -1,8 +1,8 @@
-//! Zlib module
+//! Zlib-ng module
 
 extern crate alloc;
 
-use libz_sys as sys;
+use libz_ng_sys as sys;
 
 use core::ptr;
 use alloc::boxed::Box;
@@ -40,10 +40,10 @@ impl Drop for State {
 
 impl Interface {
     #[inline]
-    ///Creates encoder with `zlib` interface
+    ///Creates encoder with `zlib-ng` interface
     ///
     ///Returns `None` if unable to initialize it (likely due to lack of memory)
-    pub fn zlib(opts: ZlibOptions) -> Option<Encoder> {
+    pub fn zlib_ng(opts: ZlibOptions) -> Option<Encoder> {
         let mut instance = Box::new(State {
             inner: sys::z_stream {
                 next_in: ptr::null_mut(),

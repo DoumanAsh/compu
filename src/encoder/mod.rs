@@ -1,17 +1,10 @@
-//!Encoder module
+//! Encoder
 
-#[cfg(feature = "brotli-c")]
-pub mod brotli;
-#[cfg(feature = "brotli-c")]
-pub use brotli::BrotliEncoder;
-#[cfg(any(feature = "zlib", feature = "zlib-opt"))]
-pub mod zlib;
-#[cfg(any(feature = "zlib", feature = "zlib-opt"))]
-pub use zlib::ZlibEncoder;
+use core::{mem, ptr};
 
 #[derive(Copy, Clone, PartialEq)]
 ///Encoder operation
-pub enum EncoderOp {
+pub enum EncodeOp {
     ///Just compress as usual.
     Process,
     ///Flush as much data as possible
@@ -24,40 +17,166 @@ pub enum EncoderOp {
     Finish,
 }
 
-///Describes compression interface
-pub trait Encoder: Sized {
-    ///Specifies whether encoder has own internal buffer.
-    const HAS_INTERNAL_BUFFER: bool;
-    ///Encoder options
-    type Options: Default;
-
-    ///Creates new instance using provided options.
-    fn new(opts: &Self::Options) -> Self;
-
-    ///Performs encoding of data chunk.
+#[derive(Debug, Copy, Clone, PartialEq)]
+///Encode status
+pub enum EncodeStatus {
+    ///Encoded, carry on.
+    Continue,
+    ///Encoded at least partially, but needs more space to write.
     ///
-    ///Returns tuple that contains: remaining input to process, remaining output buffer size and
-    ///whether encode is successful.
-    ///
-    ///Use `op` equal to `EncoderOp::Finish` to specify last chunk
-    fn encode(&mut self, input: &[u8], output: &mut [u8], op: EncoderOp) -> (usize, usize,  bool);
+    ///This is generally returned by encoders lacking internal buffer.
+    NeedOutput,
+    ///Result after `EncoderOp::Finish` issued
+    Finished,
+    ///Failed to encode.
+    Error,
+}
 
-    ///Retrieves currently buffered output, that hasn't been written yet.
-    ///
-    ///Returned bytes MUST be marked as consumed by implementation.
-    fn output<'a>(&'a mut self) -> Option<&'a [u8]>;
+#[derive(Debug)]
+///Encode output
+pub struct Encode {
+    ///Number of bytes left unprocessed in `input`
+    pub input_remain: usize,
+    ///Number of bytes left unprocessed in `output`
+    pub output_remain: usize,
+    ///Status after `encode`
+    pub status: EncodeStatus,
+}
 
-    ///Returns estimated number of bytes, for compressed input.
-    ///
-    ///Note that it might not be reliable, depending on encoder.
-    fn compress_size_hint(&self, size: usize) -> usize;
+///Encoder interface
+pub struct Interface {
+    //returns new/updated instance, MUST be replaced
+    reset_fn: fn (ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>,
+    encode_fn: unsafe fn (ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode,
+    drop_fn: fn (ptr::NonNull<u8>),
+}
 
-    ///Returns whether encoder has finished.
-    fn is_finished(&self) -> bool;
+///Decoder created from `Interface`
+pub struct Encoder {
+    instance: ptr::NonNull<u8>,
+    interface: &'static Interface,
+    opts: [u8; 2]
+}
 
-    ///Creates new instance using default `Options`
+impl Encoder {
     #[inline(always)]
-    fn default() -> Self {
-        Self::new(&Self::Options::default())
+    ///Raw encoding function, with no checks.
+    ///
+    ///Intended to be used as building block of higher level interfaces
+    ///
+    ///Arguments
+    ///
+    ///- `input` - Pointer to start of input to process. MUST NOT be null.
+    ///- `input_len` - Size of data to process in `input`
+    ///- `ouput` - Pointer to start of buffer where to write result. MUST NOT be null
+    ///- `output_len` - Size of buffer pointed by `output`
+    ///- `op` - Encoding operation to perform.
+    pub unsafe fn raw_encode(&mut self, input: *const u8, input_len: usize, output: *mut u8, output_len: usize, op: EncodeOp) -> Encode {
+        (self.interface.encode_fn)(self.instance, input, input_len, output, output_len, op)
+    }
+
+    #[inline(always)]
+    ///Encodes `input` into uninit `output`.
+    ///
+    ///`Encode` will contain number of bytes written into `output`. This number always indicates number of bytes written hence which can be assumed initialized.
+    pub fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
+        let input_len = input.len();
+        let output_len = output.len();
+        unsafe {
+            self.raw_encode(input.as_ptr(), input_len, output.as_mut_ptr() as _, output_len, op)
+        }
+    }
+
+    #[inline(always)]
+    ///Encodes `input` into `output`.
+    pub fn encode(&mut self, input: &[u8], output: &mut [u8], op: EncodeOp) -> Encode {
+        let input_len = input.len();
+        let output_len = output.len();
+        unsafe {
+            self.raw_encode(input.as_ptr(), input_len, output.as_mut_ptr() as _, output_len, op)
+        }
+    }
+
+    #[inline(always)]
+    ///Resets `Encoder` state to initial.
+    ///
+    ///Returns `true` if successfully reset, otherwise `false`
+    pub fn reset(&mut self) -> bool {
+        match (self.interface.reset_fn)(self.instance, self.opts) {
+            Some(ptr) => {
+                self.instance = ptr;
+                true
+            },
+            None => false,
+        }
     }
 }
+
+impl Drop for Encoder {
+    #[inline]
+    fn drop(&mut self) {
+        (self.interface.drop_fn)(self.instance);
+    }
+}
+
+//ZLIB macro has to be defined before declaring modules
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+macro_rules! internal_zlib_impl_encode {
+    ($state:ident, $input:ident, $input_remain:ident, $output:ident, $output_remain:ident, $op:ident) => {{
+        let op = match $op {
+            $crate::encoder::EncodeOp::Process => sys::Z_NO_FLUSH,
+            $crate::encoder::EncodeOp::Flush => sys::Z_SYNC_FLUSH,
+            $crate::encoder::EncodeOp::Finish => sys::Z_FINISH
+        };
+
+        let state = unsafe {
+            &mut *($state.as_ptr() as *mut State)
+        };
+
+        state.inner.avail_out = $output_remain as _;
+        state.inner.next_out = $output;
+
+        state.inner.avail_in = $input_remain as _;
+        state.inner.next_in = $input as *mut _;
+
+        let result = unsafe {
+            sys::deflate(&mut state.inner, op)
+        };
+
+        $crate::encoder::Encode {
+            input_remain: state.inner.avail_in as usize,
+            output_remain: state.inner.avail_out as usize,
+            status: match result {
+                sys::Z_STREAM_END => $crate::encoder::EncodeStatus::Finished,
+                //If it is final chunk, zlib may report OK while it needs more output (specifically in case of GZIP)
+                sys::Z_OK => {
+                    if op == sys::Z_FINISH {
+                        $crate::encoder::EncodeStatus::NeedOutput
+                    } else {
+                        $crate::encoder::EncodeStatus::Continue
+                    }
+                },
+                sys::Z_BUF_ERROR => $crate::encoder::EncodeStatus::NeedOutput,
+                _ => $crate::encoder::EncodeStatus::Error,
+            }
+        }
+    }}
+}
+
+
+#[cfg(feature = "brotli-c")]
+mod brotli_c;
+#[cfg(feature = "brotli-c")]
+pub use brotli_c::{BrotliOptions, BrotliEncoderMode};
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+mod zlib_common;
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+pub use zlib_common::*;
+#[cfg(any(feature = "zlib", feature = "zlib-static"))]
+mod zlib;
+#[cfg(feature = "zlib-ng")]
+mod zlib_ng;
+#[cfg(feature = "zstd")]
+mod zstd;
+#[cfg(feature = "zstd")]
+pub use zstd::{ZstdOptions, ZstdStrategy};

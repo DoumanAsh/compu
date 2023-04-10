@@ -1,19 +1,27 @@
-//! Zlib module
+//! `zlib-ng` interface implementation
 
 extern crate alloc;
 
-use libz_sys as sys;
+use libz_ng_sys as sys;
 
-use core::ptr;
+use core::{mem, ptr};
+use core::ffi::c_int;
 use alloc::boxed::Box;
 
-use super::{Interface, Encoder, Encode, EncodeOp, ZlibOptions, ZlibStrategy};
+use super::{Interface, Decoder, Decode};
+use super::zlib_common::ZlibMode;
 use crate::mem::{compu_alloc, compu_free_with_state};
 
-static ZLIB: Interface = Interface {
+extern "C" {
+    #[link_name = "zng_zError"]
+    pub fn zError(code: c_int) -> *const i8;
+}
+
+static ZLIB_NG: Interface = Interface {
     drop_fn,
     reset_fn,
-    encode_fn,
+    decode_fn,
+    describe_error_fn,
 };
 
 #[repr(transparent)]
@@ -24,7 +32,7 @@ struct State {
 impl State {
     fn reset(&mut self) -> bool {
         unsafe {
-            sys::deflateReset(&mut self.inner) == sys::Z_OK
+            sys::inflateReset(&mut self.inner) == sys::Z_OK
         }
     }
 }
@@ -33,17 +41,16 @@ impl Drop for State {
     #[inline(always)]
     fn drop(&mut self) {
         unsafe {
-            sys::deflateEnd(&mut self.inner);
+            sys::inflateEnd(&mut self.inner);
         }
     }
 }
 
 impl Interface {
-    #[inline]
-    ///Creates encoder with `zlib` interface
+    ///Creates decoder with `zlib-ng` interface
     ///
     ///Returns `None` if unable to initialize it (likely due to lack of memory)
-    pub fn zlib(opts: ZlibOptions) -> Option<Encoder> {
+    pub fn zlib_ng(mode: ZlibMode) -> Option<Decoder> {
         let mut instance = Box::new(State {
             inner: sys::z_stream {
                 next_in: ptr::null_mut(),
@@ -62,26 +69,17 @@ impl Interface {
                 reserved: 0,
             },
         });
-        let max_bits = opts.mode as _;
-        let strategy = match opts.strategy {
-            ZlibStrategy::Default => sys::Z_DEFAULT_STRATEGY,
-            ZlibStrategy::Filtered => sys::Z_FILTERED,
-            ZlibStrategy::HuffmanOnly => sys::Z_HUFFMAN_ONLY,
-            ZlibStrategy::Rle => sys::Z_RLE,
-            ZlibStrategy::Fixed => sys::Z_FIXED
-        };
         let result = unsafe {
-            sys::deflateInit2_(&mut instance.inner, opts.compression as _, sys::Z_DEFLATED, max_bits, opts.mem_level as _, strategy, sys::zlibVersion(), core::mem::size_of::<sys::z_stream>() as _)
+            sys::inflateInit2_(&mut instance.inner, mode.max_bits(), sys::zlibVersion(), mem::size_of::<sys::z_stream>() as _)
         };
 
         if result == 0 {
             let instance = unsafe {
                 ptr::NonNull::new_unchecked(Box::into_raw(instance)).cast()
             };
-            Some(Encoder {
+            Some(Decoder {
                 instance,
-                interface: &ZLIB,
-                opts: [0; 2],
+                interface: &ZLIB_NG,
             })
         } else {
             None
@@ -89,12 +87,13 @@ impl Interface {
     }
 }
 
-unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usize, output: *mut u8, output_remain: usize, op: EncodeOp) -> Encode {
-    internal_zlib_impl_encode!(state, input, input_remain, output, output_remain, op)
+#[inline]
+unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usize, output: *mut u8, output_remain: usize) -> Decode {
+    internal_zlib_impl_decode!(state, input, input_remain, output, output_remain)
 }
 
 #[inline]
-fn reset_fn(state: ptr::NonNull<u8>, _: [u8; 2]) -> Option<ptr::NonNull<u8>> {
+fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
     let result = unsafe {
         (*(state.as_ptr() as *mut State)).reset()
     };
@@ -106,9 +105,16 @@ fn reset_fn(state: ptr::NonNull<u8>, _: [u8; 2]) -> Option<ptr::NonNull<u8>> {
 }
 
 #[inline]
-fn drop_fn(state: ptr::NonNull<u8>) {
+fn drop_fn(data: ptr::NonNull<u8>) {
     unsafe {
-        drop(Box::from_raw(state.as_ptr() as *mut State));
+        drop(Box::from_raw(data.as_ptr() as *mut State));
     }
+}
 
+#[inline]
+fn describe_error_fn(code: i32) -> Option<&'static str> {
+    let result = unsafe {
+        zError(code)
+    };
+    crate::utils::convert_c_str(result)
 }

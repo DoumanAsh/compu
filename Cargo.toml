@@ -1,24 +1,50 @@
 [package]
 name = "compu"
-version = "0.5.3"
+version = "1.0.0"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
-keywords = ["brotli"]
+keywords = ["brotli", "zstd", "zlib"]
 categories = ["compression"]
 description = "Rust Compression library with generic interface"
-license = "Apache-2.0"
+license = "BSL-1.0"
 repository = "https://github.com/DoumanAsh/compu"
 documentation = "https://docs.rs/crate/compu"
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+]
 
-[dependencies]
-compu-brotli-sys = { version = "1.0.9+1", optional = true }
-cloudflare-zlib-sys = { version = "0.2", optional = true }
-libz-sys = { version = "1", optional = true, features = ["static"] }
+[dependencies.compu-brotli-sys]
+version = "1.0.10"
+optional = true
+default-features = false
+
+[dependencies.libz-sys]
+version = "1"
+optional = true
+default-features = false
+
+[dependencies.libz-ng-sys]
+version = "1"
+optional = true
+default-features = false
+
+[dependencies.zstd-sys]
+version = "2.0.8"
+optional = true
+default-features = false
+# For pre-allocated context
+features = ["experimental"]
 
 [features]
-default = ["brotli-c", "zlib"]
+default = []
 brotli-c = ["compu-brotli-sys"]
-#Optimized zlib bindings
-zlib-opt = ["cloudflare-zlib-sys"]
 #Regular zlib bindings
 zlib = ["libz-sys"]
+zlib-static = ["libz-sys/static"]
+#zlib-ng bindings (requires cmake)
+zlib-ng = ["libz-ng-sys"]
+#enables ZSTD
+zstd = ["zstd-sys"]
