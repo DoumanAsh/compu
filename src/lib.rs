@@ -20,4 +20,5 @@ pub(crate) mod utils;
 pub mod decoder;
 pub use decoder::Decoder;
 pub mod encoder;
+pub use encoder::Encoder;
 pub mod mem;
