@@ -14,6 +14,10 @@ static ZSTD: Interface = Interface {
     encode_fn,
 };
 
+extern "C" {
+    pub fn ZSTD_getErrorCode(result: usize) -> i32;
+}
+
 impl EncodeOp {
     #[inline(always)]
     const fn into_zstd(self) -> sys::ZSTD_EndDirective {
@@ -189,7 +193,7 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
                     EncodeStatus::Continue
                 }
             },
-            size => match 0i32.wrapping_sub(size as i32) {
+            size => match ZSTD_getErrorCode(size) {
                 //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
                 70 | 80 => EncodeStatus::NeedOutput,
                 _ => EncodeStatus::Error,
