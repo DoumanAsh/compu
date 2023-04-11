@@ -119,8 +119,6 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
         output_remain: output.size - output.pos,
         status: match result {
             0 => Ok(DecodeStatus::Finished),
-            1 => Err(DecodeError(1)),
-            70 => Ok(DecodeStatus::NeedOutput),
             //Unfortunately error handling in zstd is shit
             //non-zero return value means that we're not done or it is error.
             //ZSTD_decompressStream() always flushes to maximum, so if there is not enough space,
@@ -129,7 +127,7 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
             //they do not necessary use it
             size => if output.pos == output.size {
                 Ok(DecodeStatus::NeedOutput)
-            } else if sys::ZSTD_isError(size) != 0 {
+            } else if sys::ZSTD_isError(size) == 0 {
                 //Not error, means it was able to flush out everything it had
                 Ok(DecodeStatus::NeedInput)
             } else {

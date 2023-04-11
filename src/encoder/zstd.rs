@@ -172,33 +172,30 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
     Encode {
         input_remain: input.size - input.pos,
         output_remain: output.size - output.pos,
-        status: if sys::ZSTD_isError(result) != 0 {
-            match result {
-                //0 always mean there is nothing else to do.
-                //so if user requested finish, then frame is done
-                0 => match op {
-                    EncodeOp::Finish => EncodeStatus::Finished,
-                    _ => EncodeStatus::Continue,
-                },
-                //Made some progress, but not completely
-                _ => match op {
-                    //For finish/flush incomplete operation means there is not enough space even in
-                    //multi-threaded mode
-                    EncodeOp::Finish | EncodeOp::Flush => EncodeStatus::NeedOutput,
-                    //Continue operation never guaranteed to make full progress
-                    //so we can try to make educated guess whether it needs more output or not
-                    //Note that multi-threaded mode makes it harder to predict as it might need
-                    //time for workers to finish
-                    EncodeOp::Process => if output.pos == output.size || input.pos < input.size {
-                        EncodeStatus::NeedOutput
-                    } else {
-                        EncodeStatus::Continue
-                    }
-                }
+        status: match result {
+            //0 always mean there is nothing else to do.
+            //so if user requested finish, then frame is done
+            0 => match op {
+                EncodeOp::Finish => EncodeStatus::Finished,
+                _ => EncodeStatus::Continue,
+            },
+            //See possible errors in
+            //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
+            1 | 24 | 64 => EncodeStatus::Error,
+            70 | 80 => EncodeStatus::NeedOutput,
+            //Made some progress, but not completely
+            //Try to guess what it means, especially problematic for `EncodeOp::Process` as zstd is
+            //allowed not to consume output as whole
+            size => if input.pos == input.size {
+                EncodeStatus::Continue
+            } else if output.pos == output.size {
+                EncodeStatus::NeedOutput
+            } else if sys::ZSTD_isError(size) == 0 {
+                EncodeStatus::Continue
+            } else {
+                EncodeStatus::Error
             }
-        } else {
-            EncodeStatus::Error
-        },
+        }
     }
 }
 

@@ -51,7 +51,60 @@ pub struct Interface {
     drop_fn: fn (ptr::NonNull<u8>),
 }
 
-///Decoder created from `Interface`
+///Decoder
+///
+///Use [Interface] to instantiate decoder
+///
+///Under hood, in order to avoid generics, implemented as vtable with series of function pointers.
+///
+///## Example
+///
+///Brief example for chunked encoding.
+///
+///```rust
+///use compu::{Encoder, EncodeStatus, EncodeOp};
+///
+///fn compress(encoder: &mut Encoder, input: &[&[u8]], output: &mut Vec<u8>) {
+///   for chunk in input {
+///     let spare_capacity = output.spare_capacity_mut();
+///     let output_len = spare_capacity.len();
+///     let result = encoder.encode_uninit(chunk, spare_capacity, EncodeOp::Flush);
+///
+///     assert_eq!(result.input_remain, 0);
+///     assert_ne!(result.status, EncodeStatus::Error);
+///     assert_eq!(result.status, EncodeStatus::Continue);
+///     unsafe {
+///         output.set_len(output.len() + output_len - result.output_remain);
+///     }
+///   }
+///
+///   let spare_capacity = output.spare_capacity_mut();
+///   let output_len = spare_capacity.len();
+///   let result = encoder.encode_uninit(&[], spare_capacity, EncodeOp::Finish);
+///   assert_eq!(result.status, EncodeStatus::Finished);
+///
+///   unsafe {
+///       output.set_len(output.len() + output_len - result.output_remain);
+///   }
+///   //Make sure to reset state, if you want to re-use encoder.
+///   encoder.reset();
+///}
+///
+///let mut output = Vec::with_capacity(100);
+///let mut encoder = compu::encoder::Interface::brotli_c(Default::default()).expect("to create brotli encoder");
+///compress(&mut encoder, &[&[1, 2, 3, 4], &[5, 6, 7 ,8], &[9, 10]], &mut output);
+///assert!(output.len() > 0);
+///
+///output.truncate(0);
+///let mut encoder = compu::encoder::Interface::zstd(Default::default()).expect("to create zstd encoder");
+///compress(&mut encoder, &[&[1, 2, 3, 4], &[5, 6, 7 ,8], &[9, 10]], &mut output);
+///assert!(output.len() > 0);
+///
+///output.truncate(0);
+///let mut encoder = compu::encoder::Interface::zlib_ng(Default::default()).expect("to create zlib-ng encoder");
+///compress(&mut encoder, &[&[1, 2, 3, 4], &[5, 6, 7 ,8], &[9, 10]], &mut output);
+///assert!(output.len() > 0);
+///```
 pub struct Encoder {
     instance: ptr::NonNull<u8>,
     interface: &'static Interface,
