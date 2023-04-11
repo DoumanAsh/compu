@@ -179,22 +179,22 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
                 EncodeOp::Finish => EncodeStatus::Finished,
                 _ => EncodeStatus::Continue,
             },
-            //See possible errors in
-            //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
-            1 | 24 | 64 => EncodeStatus::Error,
-            70 | 80 => EncodeStatus::NeedOutput,
             //Made some progress, but not completely
             //Try to guess what it means, especially problematic for `EncodeOp::Process` as zstd is
             //allowed not to consume output as whole
-            size => if input.pos == input.size {
-                EncodeStatus::Continue
-            } else if output.pos == output.size {
-                EncodeStatus::NeedOutput
-            } else if sys::ZSTD_isError(size) == 0 {
-                EncodeStatus::Continue
-            } else {
-                EncodeStatus::Error
+            size if sys::ZSTD_isError(size) == 0 => {
+                if output.pos == output.size {
+                    EncodeStatus::NeedOutput
+                } else {
+                    EncodeStatus::Continue
+                }
+            },
+            size => match 0i32.wrapping_sub(size as i32) {
+                //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
+                70 | 80 => EncodeStatus::NeedOutput,
+                _ => EncodeStatus::Error,
             }
+
         }
     }
 }
