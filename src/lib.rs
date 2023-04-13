@@ -16,6 +16,7 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::derivable_impls))]
 
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "brotli-c", feature = "zstd"))]
 pub(crate) mod utils;
 pub mod decoder;
 pub use decoder::{Decoder, Decode, DecodeStatus, DecodeError};
