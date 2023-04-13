@@ -17,7 +17,7 @@ pub enum Detection {
 
 impl Detection {
     ///Attempts to deduce compression format from available bytes.
-    pub fn detect(bytes: &[u8]) -> Option<Detection> {
+    pub const fn detect(bytes: &[u8]) -> Option<Detection> {
         //https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#zstandard-frames
         const ZSTD_HEADER: u32 = 0xFD2FB528u32.to_le();
         const GZIP_HEADER: u16 = 0x1f8bu16.to_be();

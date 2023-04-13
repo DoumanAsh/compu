@@ -19,7 +19,7 @@
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "brotli-c", feature = "zstd"))]
 pub(crate) mod utils;
 pub mod decoder;
-pub use decoder::{Decoder, Decode, DecodeStatus, DecodeError};
+pub use decoder::{Decoder, Decode, DecodeStatus, DecodeError, Detection};
 pub mod encoder;
 pub use encoder::{Encoder, Encode, EncodeOp, EncodeStatus};
 pub mod mem;
