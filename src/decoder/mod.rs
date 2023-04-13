@@ -2,6 +2,111 @@
 use core::{mem, ptr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///Possible compression archive based on known signatures
+pub enum Detection {
+    ///ZSTD
+    Zstd,
+    ///GZIP
+    Gzip,
+    ///ZLIB
+    Zlib,
+    ///Indicates that all possible options are exhausted and it is impossible to deduce
+    ///compression.
+    Unknown,
+}
+
+impl Detection {
+    ///Attempts to deduce compression format from available bytes.
+    pub fn detect(bytes: &[u8]) -> Option<Detection> {
+        //https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#zstandard-frames
+        const ZSTD_HEADER: u32 = 0xFD2FB528u32.to_le();
+        const GZIP_HEADER: u16 = 0x1f8bu16.to_be();
+
+        macro_rules! detect_gzip {
+            ($word:ident) => {
+                if $word == GZIP_HEADER {
+                    return Some(Detection::Gzip);
+                }
+            }
+        }
+
+        //Signature:
+        //
+        // # Zlib
+        //
+        //      FLEVEL: 0       1       2       3
+        //CINFO:
+        //     0      08 1D   08 5B   08 99   08 D7
+        //     1      18 19   18 57   18 95   18 D3
+        //     2      28 15   28 53   28 91   28 CF
+        //     3      38 11   38 4F   38 8D   38 CB
+        //     4      48 0D   48 4B   48 89   48 C7
+        //     5      58 09   58 47   58 85   58 C3
+        //     6      68 05   68 43   68 81   68 DE
+        //     7      78 01   78 5E   78 9C   78 DA
+        macro_rules! detect_zlib {
+            ($word:ident) => {
+                if $word.to_be() % 31 == 0 {
+                    match bytes[0] {
+                        0x78 => if let 0x01 | 0x5e | 0x9c | 0xda = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x08 => if let 0x1d | 0x5b | 0x99 | 0xd7 =  bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x18 => if let 0x19 | 0x57 | 0x95 | 0xd3 = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x28 => if let 0x15 | 0x53 | 0x91 | 0xcf = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x38 => if let 0x11 | 0x4f | 0x8d | 0xcb = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x48 => if let 0x0d | 0x4b | 0x89 | 0xc7 = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x58 => if let 0x09 | 0x47 | 0x85 | 0xc3 = bytes[1] {
+                            return Some(Detection::Zlib);
+                        },
+                        0x68 => if let 0x05 | 0x43 | 0x81 | 0xde = bytes[1] {
+                            Some(Detection::Zlib);
+                        },
+                        _ => ()
+                    }
+                }
+            }
+        }
+
+        macro_rules! detect_zstd {
+            ($dword:ident) => {
+                if $dword == ZSTD_HEADER {
+                    return Some(Detection::Zstd);
+                }
+            }
+        }
+
+        if bytes.len() < mem::size_of::<u16>() {
+            None
+        } else if bytes.len() < mem::size_of::<u32>() {
+            let word = u16::from_ne_bytes([bytes[0], bytes[1]]);
+            detect_gzip!(word);
+            detect_zlib!(word);
+
+            None
+        } else {
+            let word = u16::from_ne_bytes([bytes[0], bytes[1]]);
+            detect_gzip!(word);
+            detect_zlib!(word);
+            let dword = u32::from_ne_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+            detect_zstd!(dword);
+
+            Some(Detection::Unknown)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 ///Decoding error
 pub struct DecodeError(i32);

@@ -1,13 +1,13 @@
 use compu::{encoder, decoder};
 use encoder::{Encoder, Interface, EncodeStatus, EncodeOp};
-use decoder::{Decoder, DecodeStatus};
+use decoder::{Decoder, DecodeStatus, Detection};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
     include_bytes!("data/alice29.txt")
 ];
 
-fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u8]) {
+fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u8], expected_detection: Detection) {
     println!("{idx}: DATA.len()={}", data.len());
 
     let mut compressed = vec![0; data.len()];
@@ -30,6 +30,7 @@ fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u
         compressed.truncate(compressed.len() - result.output_remain);
     }
 
+    assert_eq!(Detection::detect(&compressed), Some(expected_detection));
     let result = decoder.decode(&compressed, decompressed.as_mut());
     assert_eq!(result.status, Ok(DecodeStatus::Finished));
     assert_eq!(data, decompressed);
@@ -104,7 +105,7 @@ fn should_encode_and_decode_brotli_c() {
     let mut encoder = Interface::brotli_c(Default::default()).expect("create brotli encoder");
     let mut decoder = decoder::Interface::brotli_c().expect("create brotli decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
 }
 
@@ -114,7 +115,7 @@ fn should_encode_and_decode_zstd() {
     let mut encoder = Interface::zstd(Default::default()).expect("create zstd encoder");
     let mut decoder = decoder::Interface::zstd(Default::default()).expect("create zstd decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zstd);
     }
 }
 
@@ -125,7 +126,7 @@ fn should_encode_and_decode_zlib_gzip() {
     let mut encoder = Interface::zlib(options).expect("create zlib encoder");
     let mut decoder = decoder::Interface::zlib(decoder::ZlibMode::Gzip).expect("create zlib decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
     }
 }
 
@@ -136,7 +137,7 @@ fn should_encode_and_decode_zlib_ng_gzip() {
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
     }
 }
 
@@ -147,7 +148,7 @@ fn should_encode_and_decode_zlib() {
     let mut encoder = Interface::zlib(options).expect("create zlib encoder");
     let mut decoder = decoder::Interface::zlib(decoder::ZlibMode::Zlib).expect("create zlib decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zlib);
     }
 }
 
@@ -158,7 +159,7 @@ fn should_encode_and_decode_zlib_ng() {
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Zlib).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zlib);
     }
 }
 
@@ -169,7 +170,7 @@ fn should_encode_and_decode_zlib_deflate() {
     let mut encoder = Interface::zlib(options).expect("create zlib encoder");
     let mut decoder = decoder::Interface::zlib(decoder::ZlibMode::Deflate).expect("create zlib decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
 }
 
@@ -180,7 +181,7 @@ fn should_encode_and_decode_zlib_ng_deflate() {
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Deflate).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
-        test_case(idx, &mut encoder, &mut decoder, DATA[idx]);
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
 }
 
