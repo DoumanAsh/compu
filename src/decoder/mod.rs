@@ -238,6 +238,10 @@ pub struct Decoder {
     interface: &'static Interface
 }
 
+const _: () = {
+    assert!(mem::size_of::<Decoder>() == mem::size_of::<usize>() * 2);
+};
+
 impl Decoder {
     #[inline(always)]
     ///Raw decoding function, with no checks.

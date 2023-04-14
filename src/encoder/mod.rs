@@ -111,6 +111,10 @@ pub struct Encoder {
     opts: [u8; 2]
 }
 
+const _: () = {
+    assert!(mem::size_of::<Encoder>() == mem::size_of::<usize>() * 3);
+};
+
 impl Encoder {
     #[inline(always)]
     ///Raw encoding function, with no checks.
