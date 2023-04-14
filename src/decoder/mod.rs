@@ -1,5 +1,9 @@
 //! Decoder
+extern crate alloc;
+
 use core::{mem, ptr};
+
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Possible compression archive based on known signatures
@@ -171,15 +175,10 @@ pub struct Interface {
 ///
 ///fn decompress(decoder: &mut Decoder, input: core::slice::Chunks<'_, u8>, output: &mut Vec<u8>) {
 ///   for chunk in input {
-///     let spare_capacity = output.spare_capacity_mut();
-///     let output_len = spare_capacity.len();
-///     let result = decoder.decode_uninit(chunk, spare_capacity);
+///     let result = decoder.decode_vec(chunk, output);
 ///
 ///     assert_eq!(result.input_remain, 0);
 ///     let status = result.status.expect("success");
-///     unsafe {
-///         output.set_len(output.len() + output_len - result.output_remain);
-///     }
 ///     if status == DecodeStatus::Finished {
 ///         break;
 ///     }
@@ -190,13 +189,8 @@ pub struct Interface {
 ///}
 ///
 ///fn prepare_compressed(encoder: &mut Encoder, data: &[u8], compressed: &mut Vec<u8>) {
-///    let spare_capacity = compressed.spare_capacity_mut();
-///    let spare_capacity_len = spare_capacity.len();
-///    let result = encoder.encode_uninit(DATA, spare_capacity, EncodeOp::Finish);
+///    let result = encoder.encode_vec(DATA, compressed, EncodeOp::Finish);
 ///    assert_eq!(result.status, EncodeStatus::Finished);
-///    unsafe {
-///        compressed.set_len(spare_capacity_len - result.output_remain);
-///    }
 ///}
 ///
 ///const DATA: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -279,6 +273,23 @@ impl Decoder {
         unsafe {
             self.raw_decode(input.as_ptr(), input_len, output.as_mut_ptr() as _, output_len)
         }
+    }
+
+    #[inline(always)]
+    ///Decodes `input` into spare space in `output`.
+    ///
+    ///Function require user to alloc spare capacity himself.
+    ///
+    ///`Decode::output_remain` will be relatieve to spare capacity length.
+    pub fn decode_vec(&mut self, input: &[u8], output: &mut Vec<u8>) -> Decode {
+        let spare_capacity = output.spare_capacity_mut();
+        let spare_capacity_len = spare_capacity.len();
+        let result = self.decode_uninit(input, spare_capacity);
+
+        unsafe {
+            output.set_len(output.len() + spare_capacity_len - result.output_remain);
+        }
+        result
     }
 
     #[inline(always)]

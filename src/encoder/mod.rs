@@ -1,6 +1,10 @@
 //! Encoder
 
+extern crate alloc;
+
 use core::{mem, ptr};
+
+use alloc::vec::Vec;
 
 #[derive(Copy, Clone, PartialEq)]
 ///Encoder operation
@@ -155,6 +159,23 @@ impl Encoder {
     }
 
     #[inline(always)]
+    ///Encodes `input` into spare space in `output`.
+    ///
+    ///Function require user to alloc spare capacity himself.
+    ///
+    ///`Encode::output_remain` will be relatieve to spare capacity length.
+    pub fn encode_vec(&mut self, input: &[u8], output: &mut Vec<u8>, op: EncodeOp) -> Encode {
+        let spare_capacity = output.spare_capacity_mut();
+        let spare_capacity_len = spare_capacity.len();
+        let result = self.encode_uninit(input, spare_capacity, op);
+
+        unsafe {
+            output.set_len(output.len() + spare_capacity_len - result.output_remain);
+        }
+        result
+    }
+
+    #[inline(always)]
     ///Resets `Encoder` state to initial.
     ///
     ///Returns `true` if successfully reset, otherwise `false`
@@ -219,7 +240,6 @@ macro_rules! internal_zlib_impl_encode {
         }
     }}
 }
-
 
 #[cfg(feature = "brotli-c")]
 mod brotli_c;
