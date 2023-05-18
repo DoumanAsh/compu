@@ -1,5 +1,14 @@
 //!Rust Compression library with generic interface
 //!
+//!## API
+//!
+//!API is mostly thin layer that provides uniform behavior for all algorithms the best it can.
+//!
+//!Please read documentation to see how to use:
+//!
+//!- [Decoder](decoder/struct.Decoder.html)
+//!- [Encoder](encoder/struct.Encoder.html)
+//!
 //!## Features
 //!
 //!All features are off by default.
