@@ -89,10 +89,7 @@ impl Interface {
             sys::ZSTD_createDStream_advanced(allocator)
         };
         match ptr::NonNull::new(ctx).and_then(|ctx| opts.apply(ctx)) {
-            Some(ctx) => Some(Decoder {
-                instance: ctx.cast(),
-                interface: &ZSTD,
-            }),
+            Some(ctx) => Some(ZSTD.inner_decoder(ctx.cast())),
             None => None,
         }
     }

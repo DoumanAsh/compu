@@ -77,10 +77,7 @@ impl Interface {
             let instance = unsafe {
                 ptr::NonNull::new_unchecked(Box::into_raw(instance)).cast()
             };
-            Some(Decoder {
-                instance,
-                interface: &ZLIB_NG,
-            })
+            Some(ZLIB_NG.inner_decoder(instance))
         } else {
             None
         }

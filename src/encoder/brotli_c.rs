@@ -7,11 +7,11 @@ use core::ptr;
 use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
 use crate::mem::{compu_malloc_with_state, compu_free_with_state};
 
-static BROTLI_C: Interface = Interface {
-    drop_fn,
+static BROTLI_C: Interface = Interface::new(
     reset_fn,
     encode_fn,
-};
+    drop_fn,
+);
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -114,11 +114,7 @@ impl Interface {
         match new_encoder() {
             Some(ptr) => {
                 options.apply(ptr.as_ptr() as _);
-                Some(Encoder {
-                    instance: ptr.cast(),
-                    interface: &BROTLI_C,
-                    opts: options.inner,
-                })
+                Some(BROTLI_C.inner_encoder(ptr.cast(), options.inner))
             },
             None => None,
         }

@@ -55,7 +55,46 @@ pub struct Interface {
     drop_fn: fn (ptr::NonNull<u8>),
 }
 
-///Decoder
+impl Interface {
+    ///Creates new `Interface` with provided functions to build vtable.
+    ///
+    ///First argument of every function is state as pointer.
+    ///
+    ///It is user responsibility to pass correct function pointers
+    pub const fn new(
+        reset_fn: fn (ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>,
+        encode_fn: unsafe fn (ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode,
+        drop_fn: fn (ptr::NonNull<u8>),
+    ) -> Self {
+        Self {
+            reset_fn,
+            encode_fn,
+            drop_fn,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn inner_encoder(&'static self, instance: ptr::NonNull<u8>, opts: [u8; 2]) -> Encoder {
+        Encoder {
+            instance,
+            interface: self,
+            opts,
+        }
+    }
+
+    #[inline(always)]
+    ///Creates new encoder
+    ///
+    ///This function is unsafe as it is up to user to ensure correctness of `Interface
+    ///
+    ///`instance` - Encoder state, passed as first argument to every function in vtable
+    ///`opts` - is optional payload for purpose of initialization in `reset_fn`
+    pub unsafe fn encoder(&'static self, state: ptr::NonNull<u8>, opts: [u8; 2]) -> Encoder {
+        self.inner_encoder(state, opts)
+    }
+}
+
+///Encoder
 ///
 ///Use [Interface] to instantiate decoder
 ///

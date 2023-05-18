@@ -160,6 +160,45 @@ pub struct Interface {
     describe_error_fn: fn(i32) -> Option<&'static str>,
 }
 
+impl Interface {
+    ///Creates new `Interface` with provided functions to build vtable.
+    ///
+    ///First argument of every function is state as pointer.
+    ///
+    ///It is user responsibility to pass correct function pointers
+    pub const fn new(
+        decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode,
+        reset_fn: fn (ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>,
+        drop_fn: fn (ptr::NonNull<u8>),
+        describe_error_fn: fn(i32) -> Option<&'static str>,
+    ) -> Self {
+        Self {
+            decode_fn,
+            reset_fn,
+            drop_fn,
+            describe_error_fn,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn inner_decoder(&'static self, instance: ptr::NonNull<u8>) -> Decoder {
+        Decoder {
+            instance,
+            interface: self,
+        }
+    }
+
+    #[inline(always)]
+    ///Creates new decoder
+    ///
+    ///This function is unsafe as it is up to user to ensure correctness of `Interface
+    ///
+    ///`instance` - Decoder state, passed as first argument to every function in vtable
+    pub unsafe fn decoder(&'static self, state: ptr::NonNull<u8>) -> Decoder {
+        self.inner_decoder(state)
+    }
+}
+
 ///Decoder
 ///
 ///Use [Interface] to instantiate decoder.

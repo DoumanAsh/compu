@@ -7,12 +7,12 @@ use core::ptr;
 use super::{Interface, Decoder, Decode, DecodeStatus, DecodeError};
 use crate::mem::{compu_malloc_with_state, compu_free_with_state};
 
-static BROTLI_C: Interface = Interface {
-    drop_fn,
-    reset_fn,
+static BROTLI_C: Interface = Interface::new(
     decode_fn,
+    reset_fn,
+    drop_fn,
     describe_error_fn,
-};
+);
 
 #[inline]
 fn new_decoder() -> Option<ptr::NonNull<u8>> {
@@ -30,10 +30,7 @@ impl Interface {
     ///Returns `None` if unable to initialize it (likely due to lack of memory)
     pub fn brotli_c() -> Option<Decoder> {
         match new_decoder() {
-            Some(ptr) => Some(Decoder {
-                instance: ptr.cast(),
-                interface: &BROTLI_C,
-            }),
+            Some(ptr) => Some(BROTLI_C.inner_decoder(ptr.cast())),
             None => None,
         }
     }
