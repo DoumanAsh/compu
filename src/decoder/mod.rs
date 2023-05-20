@@ -21,6 +21,9 @@ pub enum Detection {
 
 impl Detection {
     ///Attempts to deduce compression format from available bytes.
+    ///
+    ///Returns `None` if there is not enough `bytes` to perform all possible checks.
+    ///In this case you need to append more data to your buffer and provide it again
     pub const fn detect(bytes: &[u8]) -> Option<Detection> {
         //https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#zstandard-frames
         const ZSTD_HEADER: u32 = 0xFD2FB528u32.to_le();

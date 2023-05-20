@@ -27,6 +27,8 @@
 //!Minimal example of using Decoder.
 //!Use [Interface](decoder/struct.Interface.html) to create instance.
 //!
+//!If you unsure about compression used, you can try [detect](decoder/enum.Detection.html#method.detect) it
+//!
 //!```rust,no_run
 //!use compu::{Decoder, DecodeStatus, DecodeError};
 //!
