@@ -25,6 +25,7 @@
 //!### Decode
 //!
 //!Minimal example of using Decoder.
+//!Use [Interface](decoder/struct.Interface.html) to create instance.
 //!
 //!```rust,no_run
 //!use compu::{Decoder, DecodeStatus, DecodeError};
@@ -49,6 +50,9 @@
 //!```
 //!
 //!### Encode
+//!
+//!Minimal example of using Encoder.
+//!Use [Interface](encoder/struct.Interface.html) to create instance.
 //!
 //!```rust,no_run
 //!use compu::{Encoder, EncodeStatus, EncodeOp};

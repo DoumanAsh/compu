@@ -22,6 +22,7 @@ This crate requires `alloc` to be available with system allocator set.
 ### Decode
 
 Minimal example of using Decoder.
+Use `Interface` to create instance.
 
 ```rust,no_run
 use compu::{Decoder, DecodeStatus, DecodeError};
@@ -46,6 +47,9 @@ fn example(decoder: &mut Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> 
 ```
 
 ### Encode
+
+Minimal example of using Encoder.
+Use `Interface` to create instance.
 
 ```rust
 use compu::{Encoder, EncodeStatus, EncodeOp};
