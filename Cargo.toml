@@ -17,7 +17,7 @@ include = [
 ]
 
 [dependencies.compu-brotli-sys]
-version = "1.0.10"
+version = "1.1.0"
 optional = true
 default-features = false
 
