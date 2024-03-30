@@ -6,84 +6,13 @@ use core::ptr;
 
 use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
 use crate::mem::{compu_malloc_with_state, compu_free_with_state};
+use super::brotli_common::BrotliOptions;
 
 static BROTLI_C: Interface = Interface::new(
     reset_fn,
     encode_fn,
     drop_fn,
 );
-
-#[repr(u8)]
-#[derive(Copy, Clone)]
-///Encoding mode
-pub enum BrotliEncoderMode {
-    ///Default mode. No assumptions about content.
-    Generic = 1,
-    ///Text mode. UTF-8.
-    Text,
-    ///WOFF 2.0 mode
-    Font
-}
-
-///!Brotli options
-#[derive(Default, Clone)]
-pub struct BrotliOptions {
-    inner: [u8; 2],
-}
-
-impl BrotliOptions {
-    const QUALITY_IDX: usize = 0;
-    const MODE_IDX: usize = 1;
-
-    #[inline(always)]
-    ///Creates default instance
-    pub const fn new() -> Self {
-        Self::from_raw([0; 2])
-    }
-
-    #[inline(always)]
-    ///Creates default instance
-    const fn from_raw(inner: [u8; 2]) -> Self {
-        Self {
-            inner,
-        }
-    }
-
-    #[inline(always)]
-    ///Sets quality
-    ///
-    ///Allowed values are from 1 to 11.
-    ///See brotli API docs for details.
-    ///
-    ///Default value is 11.
-    pub const fn quality(mut self, quality: u8) -> Self {
-        assert!(quality > 0);
-        assert!(quality <= 11);
-
-        self.inner[Self::QUALITY_IDX] = quality;
-        self
-    }
-
-    #[inline(always)]
-    ///Sets mode
-    pub const fn mode(mut self, mode: BrotliEncoderMode) -> Self {
-        self.inner[Self::MODE_IDX] = mode as u8;
-        self
-    }
-
-    fn apply(&self, state: *mut sys::BrotliEncoderState) {
-        unsafe {
-            let quality = self.inner[Self::QUALITY_IDX];
-            if quality > 0 {
-                debug_assert!(sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_QUALITY, quality as _) != 0);
-            }
-            let mode = self.inner[Self::MODE_IDX];
-            if mode > 0 {
-                debug_assert!(sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_MODE, mode as _) != 0);
-            }
-        }
-    }
-}
 
 impl EncodeOp {
     #[inline(always)]
@@ -113,7 +42,7 @@ impl Interface {
     pub fn brotli_c(options: BrotliOptions) -> Option<Encoder> {
         match new_encoder() {
             Some(ptr) => {
-                options.apply(ptr.as_ptr() as _);
+                options.apply_c(ptr.as_ptr() as _);
                 Some(BROTLI_C.inner_encoder(ptr.cast(), options.inner))
             },
             None => None,
@@ -122,7 +51,7 @@ impl Interface {
 }
 
 unsafe fn encode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_remain: usize, mut output: *mut u8, mut output_remain: usize, op: EncodeOp) -> Encode {
-    let result = unsafe {
+    let mut result = unsafe {
         sys::BrotliEncoderCompressStream(state.as_ptr() as _, op.into_brotli(), &mut input_remain, &mut input, &mut output_remain, &mut output, ptr::null_mut())
     };
     Encode {
@@ -131,7 +60,7 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_rem
         status: match result {
             0 => EncodeStatus::Error,
             _ => {
-                let result = unsafe {
+                result = unsafe {
                     sys::BrotliEncoderHasMoreOutput(state.as_ptr() as _)
                 };
                 if result == 1 {
@@ -152,7 +81,7 @@ fn reset_fn(state: ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>> 
     match new_encoder() {
         Some(ptr) => {
             drop_fn(state);
-            options.apply(ptr.as_ptr() as _);
+            options.apply_c(ptr.as_ptr() as _);
             Some(ptr)
         },
         None => None,

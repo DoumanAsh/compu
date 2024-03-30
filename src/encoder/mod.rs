@@ -280,10 +280,14 @@ macro_rules! internal_zlib_impl_encode {
     }}
 }
 
+#[cfg(any(feature = "brotli", feature = "brotli-c"))]
+mod brotli_common;
+#[cfg(any(feature = "brotli", feature = "brotli-c"))]
+pub use brotli_common::{BrotliOptions, BrotliEncoderMode};
+#[cfg(feature = "brotli")]
+mod brotli;
 #[cfg(feature = "brotli-c")]
 mod brotli_c;
-#[cfg(feature = "brotli-c")]
-pub use brotli_c::{BrotliOptions, BrotliEncoderMode};
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
 mod zlib_common;
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]

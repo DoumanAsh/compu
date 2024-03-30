@@ -5,6 +5,7 @@ extern crate alloc;
 
 use core::{mem, ptr};
 use alloc::alloc::Layout;
+pub use alloc::boxed::Box;
 
 //Linux & win 32 bit are 8
 #[cfg(not(any(target_os = "macos", all(windows, target_pointer_width = "64"))))]

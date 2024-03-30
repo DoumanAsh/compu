@@ -408,6 +408,8 @@ mod zlib;
 mod zlib_ng;
 #[cfg(feature = "brotli-c")]
 mod brotli_c;
+#[cfg(feature = "brotli-rust")]
+mod brotli;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]
