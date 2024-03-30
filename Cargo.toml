@@ -38,8 +38,14 @@ default-features = false
 # For advanced stream features (mostly for purpose of custom malloc)
 features = ["experimental"]
 
+[dependencies.brotli]
+version = "3.5"
+optional = true
+default-features = false
+
 [features]
 default = []
+brotli-rust = ["brotli"]
 brotli-c = ["compu-brotli-sys"]
 #Regular zlib bindings
 zlib = ["libz-sys"]
@@ -50,4 +56,4 @@ zlib-ng = ["libz-ng-sys"]
 zstd = ["zstd-sys"]
 
 [package.metadata.docs.rs]
-features = ["zstd", "brotli-c", "zlib", "zlib-ng"]
+features = ["zstd", "brotli-c", "brotli-rust", "zlib", "zlib-ng"]

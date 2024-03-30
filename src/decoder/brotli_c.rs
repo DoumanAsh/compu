@@ -14,15 +14,6 @@ static BROTLI_C: Interface = Interface::new(
     describe_error_fn,
 );
 
-#[inline]
-fn new_decoder() -> Option<ptr::NonNull<u8>> {
-    let result = unsafe {
-        sys::BrotliDecoderCreateInstance(Some(compu_malloc_with_state), Some(compu_free_with_state), ptr::null_mut())
-    };
-
-    ptr::NonNull::new(result as *mut u8)
-}
-
 impl Interface {
     #[inline]
     ///Creates decoder with `brotli-c` interface
@@ -34,6 +25,15 @@ impl Interface {
             None => None,
         }
     }
+}
+
+#[inline]
+fn new_decoder() -> Option<ptr::NonNull<u8>> {
+    let result = unsafe {
+        sys::BrotliDecoderCreateInstance(Some(compu_malloc_with_state), Some(compu_free_with_state), ptr::null_mut())
+    };
+
+    ptr::NonNull::new(result as *mut u8)
 }
 
 #[inline]

@@ -57,6 +57,15 @@ fn should_decode_brotli_c() {
     }
 }
 
+#[cfg(feature = "brotli-rust")]
+#[test]
+fn should_decode_brotli_rust() {
+    let mut decoder = Interface::brotli_rust();
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
+    }
+}
+
 #[cfg(feature = "zstd")]
 #[test]
 fn should_decode_zstd() {

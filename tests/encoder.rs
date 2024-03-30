@@ -109,6 +109,16 @@ fn should_encode_and_decode_brotli_c() {
     }
 }
 
+#[cfg(feature = "brotli-rust")]
+#[test]
+fn should_encode_and_decode_brotli_rust() {
+    let mut encoder = Interface::brotli_rust(Default::default());
+    let mut decoder = decoder::Interface::brotli_rust();
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+    }
+}
+
 #[cfg(feature = "zstd")]
 #[test]
 fn should_encode_and_decode_zstd() {
@@ -190,6 +200,16 @@ fn should_encode_and_decode_zlib_ng_deflate() {
 fn should_encode_with_empty_final_and_decode_brotli_c() {
     let mut encoder = Interface::brotli_c(Default::default()).expect("create brotli encoder");
     let mut decoder = decoder::Interface::brotli_c().expect("create brotli decoder");
+    for idx in 0..DATA.len() {
+        test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
+    }
+}
+
+#[cfg(feature = "brotli-rust")]
+#[test]
+fn should_encode_with_empty_final_and_decode_brotli_rust() {
+    let mut encoder = Interface::brotli_rust(Default::default());
+    let mut decoder = decoder::Interface::brotli_rust();
     for idx in 0..DATA.len() {
         test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
     }
