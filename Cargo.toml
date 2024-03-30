@@ -56,4 +56,4 @@ zlib-ng = ["libz-ng-sys"]
 zstd = ["zstd-sys"]
 
 [package.metadata.docs.rs]
-features = ["zstd", "brotli-c", "zlib", "zlib-ng"]
+features = ["zstd", "brotli-c", "brotli-rust", "zlib", "zlib-ng"]
