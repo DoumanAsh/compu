@@ -24,9 +24,7 @@ impl Interface {
 
         options.apply_rust(&mut state);
 
-        let ptr = unsafe {
-            ptr::NonNull::new_unchecked(Box::into_raw(state) as *mut u8)
-        };
+        let ptr = ptr::NonNull::from(Box::leak(state));
         BROTLI_RUST.inner_encoder(ptr.cast(), options.inner)
     }
 }
@@ -98,11 +96,9 @@ fn reset_fn(state: ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>> 
     *state = instance();
     options.apply_rust(&mut state);
 
-    let ptr = Box::into_raw(state);
+    let ptr = Box::leak(state);
 
-    unsafe {
-        Some(ptr::NonNull::new_unchecked(ptr as *mut u8))
-    }
+    Some(ptr::NonNull::from(ptr).cast())
 }
 
 #[inline]

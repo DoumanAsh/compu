@@ -20,9 +20,7 @@ impl Interface {
     pub fn brotli_rust() -> Decoder {
         let state = Box::new(instance());
 
-        let ptr = unsafe {
-            ptr::NonNull::new_unchecked(Box::into_raw(state) as *mut u8)
-        };
+        let ptr = ptr::NonNull::from(Box::leak(state));
         BROTLI_RUST.inner_decoder(ptr.cast())
     }
 }
@@ -73,11 +71,8 @@ fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
     };
 
     *state = instance();
-    let ptr = Box::into_raw(state);
-
-    unsafe {
-        Some(ptr::NonNull::new_unchecked(ptr as *mut u8))
-    }
+    let ptr = Box::leak(state);
+    Some(ptr::NonNull::from(ptr).cast())
 }
 
 #[inline]

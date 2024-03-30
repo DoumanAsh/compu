@@ -75,9 +75,7 @@ impl Interface {
         };
 
         if result == 0 {
-            let instance = unsafe {
-                ptr::NonNull::new_unchecked(Box::into_raw(instance)).cast()
-            };
+            let instance = ptr::NonNull::from(Box::leak(instance)).cast();
             Some(ZLIB.inner_encoder(instance, [0; 2]))
         } else {
             None
