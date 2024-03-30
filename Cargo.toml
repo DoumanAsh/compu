@@ -42,7 +42,6 @@ features = ["experimental"]
 version = "3.5"
 optional = true
 default-features = false
-features = ["std"]
 
 [features]
 default = []

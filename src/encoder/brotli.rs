@@ -2,10 +2,11 @@
 
 use core::{slice, ptr};
 use crate::mem::Box;
+use crate::mem::brotli_rust::BrotliAllocator;
 use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
 use super::brotli_common::BrotliOptions;
 
-pub(crate) type Instance = brotli::enc::encode::BrotliEncoderStateStruct<brotli::enc::StandardAlloc>;
+pub(crate) type Instance = brotli::enc::encode::BrotliEncoderStateStruct<BrotliAllocator>;
 
 static BROTLI_RUST: Interface = Interface::new(
     reset_fn,

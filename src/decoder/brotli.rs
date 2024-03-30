@@ -1,8 +1,9 @@
 use core::{slice, ptr};
 
 use crate::mem::Box;
+use crate::mem::brotli_rust::BrotliAllocator;
 use super::{Interface, Decoder, Decode, DecodeStatus, DecodeError};
-pub(crate) type Instance = brotli::BrotliState<brotli::enc::StandardAlloc, brotli::enc::StandardAlloc, brotli::enc::StandardAlloc>;
+pub(crate) type Instance = brotli::BrotliState<BrotliAllocator, BrotliAllocator, BrotliAllocator>;
 
 static BROTLI_RUST: Interface = Interface::new(
     decode_fn,

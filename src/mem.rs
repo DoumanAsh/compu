@@ -22,7 +22,6 @@ fn unlikely_null() -> *mut c_void {
     ptr::null_mut()
 }
 
-
 #[inline]
 ///`malloc` impl with Rust allocator
 pub unsafe extern "C" fn compu_malloc(size: usize) -> *mut c_void {
@@ -67,4 +66,55 @@ pub(crate) unsafe extern "C" fn compu_alloc(_: *mut c_void, items: c_uint, size:
 #[allow(unused)]
 pub(crate) unsafe extern "C" fn compu_free_with_state(_: *mut c_void, mem: *mut c_void) {
     compu_free(mem)
+}
+
+#[cfg(feature = "brotli-rust")]
+///Allocator implementation using Rust's global allocator
+pub mod brotli_rust {
+    extern crate alloc;
+
+    use super::Box;
+    use alloc::vec::Vec;
+
+    ///Boxed slice wrapper
+    pub struct BoxedSlice<T>(Box<[T]>);
+
+    impl<T> Default for BoxedSlice<T> {
+        fn default() -> Self {
+            return Self(Vec::new().into_boxed_slice())
+        }
+    }
+    impl<T> brotli::SliceWrapper<T> for BoxedSlice<T> {
+        #[inline(always)]
+        fn slice(&self) -> &[T] {
+            &self.0
+        }
+    }
+
+    impl<T> brotli::SliceWrapperMut<T> for BoxedSlice<T> {
+        #[inline(always)]
+        fn slice_mut(&mut self) -> &mut [T] {
+            return &mut self.0
+        }
+    }
+
+    #[derive(Copy, Clone, Default)]
+    ///Default allocator
+    pub struct BrotliAllocator;
+
+    impl<T: Default> brotli::Allocator<T> for BrotliAllocator {
+        type AllocatedMemory = BoxedSlice<T>;
+        fn alloc_cell(&mut self, len: usize) -> Self::AllocatedMemory {
+            let mut vec = Vec::with_capacity(len);
+            for _ in 0..len {
+                vec.push(Default::default());
+            }
+            BoxedSlice(vec.into_boxed_slice())
+        }
+
+        fn free_cell(&mut self, _data: Self::AllocatedMemory) {
+        }
+    }
+
+    impl brotli::enc::BrotliAlloc for BrotliAllocator {}
 }
