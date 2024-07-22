@@ -334,6 +334,46 @@ impl Decoder {
         result
     }
 
+    #[cfg(feature = "bytes")]
+    ///Decodes `input` into `output` buffer, iterating through all spare capacity chunks if
+    ///necessary
+    ///
+    ///Requires `bytes` feature
+    ///
+    ///`Decode::output_remain` will be relative to spare capacity length.
+    pub fn decode_buf(&mut self, mut input: &[u8], output: &mut impl bytes::BufMut) -> Decode {
+        let mut result = Decode {
+            input_remain: input.len(),
+            output_remain: output.remaining_mut(),
+            status: Ok(DecodeStatus::NeedOutput),
+        };
+
+        loop {
+            let spare_capacity = output.chunk_mut();
+            let spare_capacity_len = spare_capacity.len();
+
+            let (advanced_len, decode) = unsafe {
+                let decode = self.decode_uninit(input, spare_capacity.as_uninit_slice_mut());
+                debug_assert!(spare_capacity_len > decode.output_remain);
+                let advanced_len = spare_capacity_len.saturating_sub(decode.output_remain);
+                output.advance_mut(advanced_len);
+                (advanced_len, decode)
+            };
+            input = &input[result.input_remain - decode.input_remain..];
+            result.input_remain = decode.input_remain;
+            result.output_remain = result.output_remain.saturating_sub(advanced_len);
+            result.status = decode.status;
+
+            match result.status {
+                Ok(DecodeStatus::Finished | DecodeStatus::NeedInput) => break result,
+                Ok(DecodeStatus::NeedOutput) => if result.output_remain == 0 {
+                    break result
+                },
+                Err(_) => break result,
+            }
+        }
+    }
+
     #[inline(always)]
     ///Resets `Decoder` state to initial.
     ///

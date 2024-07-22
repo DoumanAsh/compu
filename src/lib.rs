@@ -20,6 +20,7 @@
 //!- `zlib` - Enables `zlib` interface.
 //!- `zlib-static` - Enables `zlib` interface with `static` feature.
 //!- `zstd` - Enables `zstd` interface.
+//!- `bytes` - Enables `bytes` support
 //!
 //!## Usage
 //!
@@ -91,8 +92,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::derivable_impls))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::style, clippy::derivable_impls))]
 
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "brotli-c", feature = "zstd"))]
 pub(crate) mod utils;

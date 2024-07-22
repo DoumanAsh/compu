@@ -214,6 +214,45 @@ impl Encoder {
         result
     }
 
+    #[cfg(feature = "bytes")]
+    ///Encodes `input` into `output` buffer, iterating through all spare capacity chunks if
+    ///necessary
+    ///
+    ///Requires `bytes` feature
+    ///
+    ///`Encode::output_remain` will be relative to spare capacity length.
+    pub fn encode_buf(&mut self, mut input: &[u8], output: &mut impl bytes::BufMut, op: EncodeOp) -> Encode {
+        let mut result = Encode {
+            input_remain: input.len(),
+            output_remain: output.remaining_mut(),
+            status: EncodeStatus::NeedOutput,
+        };
+
+        loop {
+            let spare_capacity = output.chunk_mut();
+            let spare_capacity_len = spare_capacity.len();
+
+            let (advanced_len, encode) = unsafe {
+                let encode = self.encode_uninit(input, spare_capacity.as_uninit_slice_mut(), op);
+                debug_assert!(spare_capacity_len > encode.output_remain);
+                let advanced_len = spare_capacity_len.saturating_sub(encode.output_remain);
+                output.advance_mut(advanced_len);
+                (advanced_len, encode)
+            };
+            input = &input[result.input_remain - encode.input_remain..];
+            result.input_remain = encode.input_remain;
+            result.output_remain = result.output_remain.saturating_sub(advanced_len);
+            result.status = encode.status;
+
+            match result.status {
+                EncodeStatus::Error | EncodeStatus::Finished | EncodeStatus::Continue => break result,
+                EncodeStatus::NeedOutput => if result.output_remain == 0 {
+                    break result
+                }
+            }
+        }
+    }
+
     #[inline(always)]
     ///Resets `Encoder` state to initial.
     ///

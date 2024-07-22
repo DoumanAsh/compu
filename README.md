@@ -17,6 +17,7 @@ This crate requires `alloc` to be available with system allocator set.
 - `zlib` - Enables `zlib` interface.
 - `zlib-static` - Enables `zlib` interface with `static` feature.
 - `zstd` - Enables `zstd` interface.
+- `bytes` - Enables `bytes` support
 
 ## Usage
 

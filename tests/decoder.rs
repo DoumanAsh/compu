@@ -48,12 +48,32 @@ fn test_case(idx: usize, decoder: &mut decoder::Decoder, data: &[u8], compressed
     println!("error={error}");
 }
 
+#[cfg(feature = "bytes")]
+fn test_case_bytes(idx: usize, decoder: &mut decoder::Decoder, data: &[u8], compressed: &[u8]) {
+    use bytes::BufMut;
+    println!("bytes({idx}): DATA.len()={} || COMPRESSED.len()={}", data.len(), compressed.len());
+
+    //Full
+    let mut output = bytes::BytesMut::new();
+    //BytesMut allocs automatically, but generally you should prefer to reserve memory
+    //output.reserve(data.len());
+    let expected_output_remain = output.remaining_mut() - data.len();
+    let result = decoder.decode_buf(compressed, &mut output);
+    assert_eq!(result.status, Ok(DecodeStatus::Finished));
+    assert_eq!(result.input_remain, 0);
+    assert_eq!(result.output_remain, expected_output_remain);
+    assert_eq!(data, output);
+    decoder.reset();
+}
+
 #[cfg(feature = "brotli-c")]
 #[test]
 fn should_decode_brotli_c() {
     let mut decoder = Interface::brotli_c().expect("create brotli decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
     }
 }
 
@@ -63,6 +83,9 @@ fn should_decode_brotli_rust() {
     let mut decoder = Interface::brotli_rust();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
     }
 }
 
@@ -72,6 +95,8 @@ fn should_decode_zstd() {
     let mut decoder = Interface::zstd(Default::default()).expect("create zstd decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
     }
 }
 
@@ -81,6 +106,8 @@ fn should_decode_zlib_gzip() {
     let mut decoder = Interface::zlib(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
     }
 }
 
@@ -90,5 +117,7 @@ fn should_decode_zlib_ng_gzip() {
     let mut decoder = Interface::zlib(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
     }
 }

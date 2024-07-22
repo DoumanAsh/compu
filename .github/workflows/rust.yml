@@ -63,10 +63,11 @@ jobs:
         rustc --version
 
     - name: Test
-      run: cargo test --features brotli-c,zlib-static,zlib-ng,zstd
+      run: cargo test --features brotli-c,zlib-static,zlib-ng,zstd,bytes
 
     - name: Check individual features
       run: |
+        cargo check --features bytes
         cargo check --features brotli-c
         cargo check --features brotli-rust
         cargo check --features zlib
@@ -78,4 +79,4 @@ jobs:
       if: runner.os == 'Linux'
       env:
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "valgrind --leak-check=full --error-exitcode=1"
-      run: cargo test --release --features brotli-c,brotli-rust,zlib-static,zlib-ng,zstd
+      run: cargo test --release --features brotli-c,brotli-rust,zlib-static,zlib-ng,zstd,bytes
