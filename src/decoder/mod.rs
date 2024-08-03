@@ -348,14 +348,14 @@ impl Decoder {
     ///
     ///Strategy depends on input size.
     ///- Less than 1024:
-    /// - Allocates `input.len()`
-    /// - Re-alloc size `input.len() / 3`
+    ///   - Allocates `input.len()`
+    ///   - Re-alloc size `input.len() / 3`
     ///- From 1024 to 65536:
-    /// - Allocates `input.len() + input.len() / 3`
-    /// - Re-alloc size `1024`
-    ///- Fomr 65536:
-    /// - Allocates `input.len() * 2`
-    /// - Re-alloc size `8 * 1024`
+    ///   - Allocates `input.len() + input.len() / 3`
+    ///   - Re-alloc size `1024`
+    ///- From 65536:
+    ///   - Allocates `input.len() * 2`
+    ///   - Re-alloc size `8 * 1024`
     ///
     ///Note that the best strategy is always to re-use buffer
     ///
