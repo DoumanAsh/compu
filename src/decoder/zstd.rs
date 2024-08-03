@@ -38,9 +38,9 @@ impl ZstdOptions {
     ///This acts as cap on window_log, refusing to decompress anything above it.
     ///Normally, default value is all you need.
     pub const fn window_log(mut self, window_log: i32) -> Self {
-        #[cfg(any(target_pointer_width = "8", target_pointer_width = "16", target_pointer_width = "32"))]
+        #[cfg(any(target_pointer_width = "16", target_pointer_width = "32"))]
         assert!(window_log <= sys::ZSTD_WINDOWLOG_MAX_32 as i32);
-        #[cfg(not(any(target_pointer_width = "8", target_pointer_width = "16", target_pointer_width = "32")))]
+        #[cfg(not(any(target_pointer_width = "16", target_pointer_width = "32")))]
         assert!(window_log <= sys::ZSTD_WINDOWLOG_MAX_64 as i32);
         assert!(window_log >= sys::ZSTD_WINDOWLOG_MIN as i32);
         self.window_log = window_log;

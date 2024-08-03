@@ -59,7 +59,7 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
         slice::from_raw_parts_mut(output, output_remain)
     };
 
-    let mut result = brotli::enc::encode::BrotliEncoderCompressStream(
+    let result = brotli::enc::encode::BrotliEncoderCompressStream(
         state,
         op.into_rust_brotli(),
         &mut input_remain, input, &mut 0,
@@ -67,14 +67,18 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
         &mut None,
         &mut |_a, _b, _c, _d| (),
     );
+    let has_more_output = brotli::enc::encode::BrotliEncoderHasMoreOutput(state);
+
     Encode {
         input_remain,
         output_remain,
         status: match result {
-            0 => EncodeStatus::Error,
+            0 => match has_more_output {
+                0 => EncodeStatus::Error,
+                _ => EncodeStatus::NeedOutput,
+            },
             _ => {
-                result = brotli::enc::encode::BrotliEncoderHasMoreOutput(state);
-                if result == 1 {
+                if has_more_output != 0 {
                     EncodeStatus::NeedOutput
                 } else if op == EncodeOp::Finish {
                     EncodeStatus::Finished

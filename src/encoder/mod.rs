@@ -5,6 +5,7 @@ extern crate alloc;
 use core::{mem, ptr};
 
 use alloc::vec::Vec;
+use alloc::collections::TryReserveError;
 
 #[derive(Copy, Clone, PartialEq)]
 ///Encoder operation
@@ -208,10 +209,65 @@ impl Encoder {
         let spare_capacity_len = spare_capacity.len();
         let result = self.encode_uninit(input, spare_capacity, op);
 
+        let new_len = output.len() + spare_capacity_len - result.output_remain;
         unsafe {
-            output.set_len(output.len() + spare_capacity_len - result.output_remain);
+            output.set_len(new_len);
         }
         result
+    }
+
+    #[inline(always)]
+    ///Encodes `input` into `output` Vec, performing allocation when necessary
+    ///
+    ///This function will continue encoding as long as input requires more input.
+    ///
+    ///## Allocation
+    ///
+    ///Strategy depends on input size.
+    ///- Less than 1024:
+    /// - Allocates `input.len()`
+    /// - Re-alloc size `input.len() / 3`
+    ///- From 1024 to 65536:
+    /// - Allocates `input.len() / 2`
+    /// - Re-alloc size `1024`
+    ///- Fomr 65536:
+    /// - Allocates `input.len() / 3`
+    /// - Re-alloc size `8 * 1024`
+    ///
+    ///Note that the best strategy is always to re-use buffer
+    ///
+    ///## Result
+    ///
+    ///- `Encode::output_remain` will be relatieve to spare capacity of the `output`.
+    pub fn encode_vec_full(&mut self, mut input: &[u8], output: &mut Vec<u8>, op: EncodeOp) -> Result<Encode, TryReserveError> {
+        const RESERVE_DEFAULT: usize = 1024;
+        let input_len = input.len();
+        let reserve_size = if input_len < RESERVE_DEFAULT {
+            output.try_reserve_exact(input_len)?;
+            input_len / 3
+        } else if input_len < (RESERVE_DEFAULT * 16) {
+            output.try_reserve_exact(input_len / 2)?;
+            RESERVE_DEFAULT
+        } else {
+            output.try_reserve_exact(input.len() / 3)?;
+            RESERVE_DEFAULT * 8
+        };
+
+        loop {
+            let result = self.encode_vec(input, output, op);
+            match result.status {
+                EncodeStatus::NeedOutput => {
+                    input = &input[input.len() - result.input_remain..];
+                    output.try_reserve_exact(reserve_size)?;
+                    continue;
+                },
+                EncodeStatus::Continue if op == EncodeOp::Finish => {
+                    input = &input[input.len() - result.input_remain..];
+                    continue;
+                },
+                _ => break Ok(result),
+            }
+        }
     }
 
     #[cfg(feature = "bytes")]

@@ -4,6 +4,7 @@ extern crate alloc;
 use core::{mem, ptr};
 
 use alloc::vec::Vec;
+use alloc::collections::TryReserveError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Possible compression archive based on known signatures
@@ -144,6 +145,7 @@ pub enum DecodeStatus {
     Finished,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Decode output
 pub struct Decode {
     ///Number of bytes left unprocessed in `input`
@@ -328,10 +330,63 @@ impl Decoder {
         let spare_capacity_len = spare_capacity.len();
         let result = self.decode_uninit(input, spare_capacity);
 
-        unsafe {
-            output.set_len(output.len() + spare_capacity_len - result.output_remain);
+        if result.status.is_ok() {
+            let new_len = output.len() + spare_capacity_len - result.output_remain;
+            unsafe {
+                output.set_len(new_len);
+            }
         }
         result
+    }
+
+    #[inline(always)]
+    ///Decodes `input` into `output` Vec, performing allocation when necessary
+    ///
+    ///This function will continue decoding as long as input requires more input.
+    ///
+    ///## Allocation
+    ///
+    ///Strategy depends on input size.
+    ///- Less than 1024:
+    /// - Allocates `input.len()`
+    /// - Re-alloc size `input.len() / 3`
+    ///- From 1024 to 65536:
+    /// - Allocates `input.len() + input.len() / 3`
+    /// - Re-alloc size `1024`
+    ///- Fomr 65536:
+    /// - Allocates `input.len() * 2`
+    /// - Re-alloc size `8 * 1024`
+    ///
+    ///Note that the best strategy is always to re-use buffer
+    ///
+    ///## Result
+    ///
+    ///- `Decode::output_remain` will be relatieve to spare capacity of the `output`.
+    pub fn decode_vec_full(&mut self, mut input: &[u8], output: &mut Vec<u8>) -> Result<Decode, TryReserveError> {
+        const RESERVE_DEFAULT: usize = 1024;
+        let input_len = input.len();
+        let reserve_size = if input_len < RESERVE_DEFAULT {
+            output.try_reserve_exact(input_len)?;
+            input_len / 3
+        } else if input_len < (RESERVE_DEFAULT * 16) {
+            output.try_reserve_exact(input_len + input_len / 3)?;
+            RESERVE_DEFAULT
+        } else {
+            output.try_reserve_exact(input.len() * 2)?;
+            RESERVE_DEFAULT * 8
+        };
+
+        loop {
+            let result = self.decode_vec(input, output);
+            match result.status {
+                Ok(DecodeStatus::NeedOutput) => {
+                    input = &input[input.len() - result.input_remain..];
+                    output.try_reserve_exact(reserve_size)?;
+                    continue;
+                },
+                _ => break Ok(result),
+            }
+        }
     }
 
     #[cfg(feature = "bytes")]

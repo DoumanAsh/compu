@@ -43,6 +43,15 @@ fn test_case(idx: usize, decoder: &mut decoder::Decoder, data: &[u8], compressed
     assert_eq!(data, output);
     decoder.reset();
 
+    //Full vec
+    let mut output = Vec::new();
+    let result = decoder.decode_vec_full(compressed, output.as_mut()).expect("success");
+    assert_eq!(result.status, Ok(DecodeStatus::Finished));
+    assert_eq!(result.input_remain, 0);
+    //Spare capacity leftover will be present as we do not have precise ability to allocate
+    assert_eq!(data, output);
+    decoder.reset();
+
     let error = DecodeError::no_error();
     let error = decoder.describe_error(error).expect("to get generic error");
     println!("error={error}");

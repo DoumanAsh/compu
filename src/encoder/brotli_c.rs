@@ -51,19 +51,23 @@ impl Interface {
 }
 
 unsafe fn encode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_remain: usize, mut output: *mut u8, mut output_remain: usize, op: EncodeOp) -> Encode {
-    let mut result = unsafe {
+    let result = unsafe {
         sys::BrotliEncoderCompressStream(state.as_ptr() as _, op.into_brotli(), &mut input_remain, &mut input, &mut output_remain, &mut output, ptr::null_mut())
+    };
+
+    let has_more_output = unsafe {
+        sys::BrotliEncoderHasMoreOutput(state.as_ptr() as _)
     };
     Encode {
         input_remain,
         output_remain,
         status: match result {
-            0 => EncodeStatus::Error,
+            0 => match has_more_output {
+                0 => EncodeStatus::Error,
+                _ => EncodeStatus::NeedOutput,
+            },
             _ => {
-                result = unsafe {
-                    sys::BrotliEncoderHasMoreOutput(state.as_ptr() as _)
-                };
-                if result == 1 {
+                if has_more_output != 0 {
                     EncodeStatus::NeedOutput
                 } else if op == EncodeOp::Finish {
                     EncodeStatus::Finished

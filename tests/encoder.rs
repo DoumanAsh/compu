@@ -11,7 +11,9 @@ fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u
     println!("{idx}: DATA.len()={}", data.len());
 
     let mut compressed = vec![0; data.len()];
+    let mut compressed_full = Vec::new();
     let mut decompressed = vec![0; data.len()];
+    let mut decompressed_full = Vec::new();
     let result = encoder.encode(data, compressed.as_mut(), EncodeOp::Finish);
     assert_eq!(result.input_remain, 0);
 
@@ -34,6 +36,21 @@ fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u
     let result = decoder.decode(&compressed, decompressed.as_mut());
     assert_eq!(result.status, Ok(DecodeStatus::Finished));
     assert_eq!(data, decompressed);
+
+    encoder.reset();
+    let result = encoder.encode_vec_full(data, compressed_full.as_mut(), EncodeOp::Finish).expect("Success");
+    assert_eq!(result.status, EncodeStatus::Finished);
+    assert_eq!(result.input_remain, 0);
+    assert_eq!(compressed.len(), compressed_full.len(), "compressed != compressed_full");
+    assert!(compressed == compressed_full);
+
+    decoder.reset();
+    let result = decoder.decode_vec_full(&compressed_full, decompressed_full.as_mut()).expect("success");
+    match result.status {
+        Ok(status) => assert_eq!(status, DecodeStatus::Finished),
+        Err(error) => panic!("Unexpected error: {:?}", decoder.describe_error(error)),
+    }
+    assert_eq!(data, decompressed_full);
 
     encoder.reset();
     decoder.reset();
