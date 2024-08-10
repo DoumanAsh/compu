@@ -4,12 +4,12 @@ extern crate alloc;
 
 use libz_ng_sys as sys;
 
-use core::{mem, ptr};
-use core::ffi::c_int;
 use alloc::boxed::Box;
+use core::ffi::c_int;
+use core::{mem, ptr};
 
-use super::{Interface, Decoder, Decode};
 use super::zlib_common::ZlibMode;
+use super::{Decode, Decoder, Interface};
 use crate::mem::{compu_alloc, compu_free_with_state};
 
 extern "C" {

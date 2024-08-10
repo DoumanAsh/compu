@@ -4,12 +4,12 @@ extern crate alloc;
 
 use libz_sys as sys;
 
-use core::{mem, ptr};
-use core::ffi::c_int;
 use alloc::boxed::Box;
+use core::ffi::c_int;
+use core::{mem, ptr};
 
-use super::{Interface, Decoder, Decode};
 use super::zlib_common::ZlibMode;
+use super::{Decode, Decoder, Interface};
 use crate::mem::{compu_alloc, compu_free_with_state};
 
 extern "C" {
@@ -31,9 +31,7 @@ struct State {
 
 impl State {
     fn reset(&mut self) -> bool {
-        unsafe {
-            sys::inflateReset(&mut self.inner) == sys::Z_OK
-        }
+        unsafe { sys::inflateReset(&mut self.inner) == sys::Z_OK }
     }
 }
 
@@ -70,7 +68,12 @@ impl Interface {
             },
         });
         let result = unsafe {
-            sys::inflateInit2_(&mut instance.inner, mode.max_bits(), sys::zlibVersion(), mem::size_of::<sys::z_stream>() as _)
+            sys::inflateInit2_(
+                &mut instance.inner,
+                mode.max_bits(),
+                sys::zlibVersion(),
+                mem::size_of::<sys::z_stream>() as _,
+            )
         };
 
         if result == 0 {

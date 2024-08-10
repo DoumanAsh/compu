@@ -4,9 +4,9 @@ use zstd_sys as sys;
 
 use core::ptr;
 
-use super::{Interface, Decoder, Decode, DecodeStatus, DecodeError};
-use crate::mem::compu_malloc_with_state;
+use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface};
 use crate::mem::compu_free_with_state;
+use crate::mem::compu_malloc_with_state;
 
 static ZSTD: Interface = Interface {
     drop_fn,
@@ -28,7 +28,7 @@ impl ZstdOptions {
     ///Creates new default value
     pub const fn new() -> Self {
         Self {
-            window_log: 0,
+            window_log: 0
         }
     }
 
@@ -52,13 +52,12 @@ impl ZstdOptions {
         macro_rules! set {
             ($field:ident => $param:ident) => {{
                 unsafe {
-                    if sys::ZSTD_isError(
-                        sys::ZSTD_DCtx_setParameter(ctx.as_ptr(), sys::ZSTD_dParameter::$param, self.$field as _)
-                    ) != 0 {
+                    let result = sys::ZSTD_isError(sys::ZSTD_DCtx_setParameter(ctx.as_ptr(), sys::ZSTD_dParameter::$param, self.$field as _));
+                    if result != 0 {
                         return None;
                     }
                 }
-            }}
+            }};
         }
 
         set!(window_log => ZSTD_d_windowLogMax);
@@ -122,15 +121,17 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
             //we should check it first, otherwise assume we need more input.
             //Even though they have error code 70 to indicate output not having enough space
             //they do not necessary use it
-            size => if output.pos == output.size {
-                Ok(DecodeStatus::NeedOutput)
-            } else if sys::ZSTD_isError(size) == 0 {
-                //Not error, means it was able to flush out everything it had
-                Ok(DecodeStatus::NeedInput)
-            } else {
-                Err(DecodeError(size as _))
+            size => {
+                if output.pos == output.size {
+                    Ok(DecodeStatus::NeedOutput)
+                } else if sys::ZSTD_isError(size) == 0 {
+                    //Not error, means it was able to flush out everything it had
+                    Ok(DecodeStatus::NeedInput)
+                } else {
+                    Err(DecodeError(size as _))
+                }
             }
-        }
+        },
     }
 }
 

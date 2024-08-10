@@ -1,15 +1,15 @@
-use core::{slice, ptr};
+use core::{ptr, slice};
 
-use crate::mem::Box;
+use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface};
 use crate::mem::brotli_rust::BrotliAllocator;
-use super::{Interface, Decoder, Decode, DecodeStatus, DecodeError};
+use crate::mem::Box;
 pub(crate) type Instance = brotli::BrotliState<BrotliAllocator, BrotliAllocator, BrotliAllocator>;
 
 static BROTLI_RUST: Interface = Interface::new(
     decode_fn,
     reset_fn,
     drop_fn,
-    describe_error_fn,
+    describe_error_fn
 );
 
 impl Interface {
@@ -45,12 +45,7 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
         slice::from_raw_parts_mut(output, output_remain)
     };
 
-    let result = brotli::BrotliDecompressStream(
-        &mut input_remain, &mut 0, input,
-        &mut output_remain, &mut 0, output,
-        &mut 0,
-        state,
-    );
+    let result = brotli::BrotliDecompressStream(&mut input_remain, &mut 0, input, &mut output_remain, &mut 0, output, &mut 0, state);
 
     Decode {
         input_remain,
@@ -59,8 +54,8 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
             brotli::BrotliResult::ResultSuccess => Ok(DecodeStatus::Finished),
             brotli::BrotliResult::NeedsMoreInput => Ok(DecodeStatus::NeedInput),
             brotli::BrotliResult::NeedsMoreOutput => Ok(DecodeStatus::NeedOutput),
-            brotli::BrotliResult::ResultFailure => Err(DecodeError(state.error_code as _))
-        }
+            brotli::BrotliResult::ResultFailure => Err(DecodeError(state.error_code as _)),
+        },
     }
 }
 
@@ -77,9 +72,7 @@ fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
 
 #[inline]
 fn drop_fn(state: ptr::NonNull<u8>) {
-    let _ = unsafe {
-        Box::from_raw(state.as_ptr() as *mut Instance)
-    };
+    let _ = unsafe { Box::from_raw(state.as_ptr() as *mut Instance) };
 }
 
 #[inline]
@@ -109,7 +102,6 @@ fn describe_error_fn(code: i32) -> Option<&'static str> {
         -16 => Some("ERROR_FORMAT_DISTANCE"),
 
         /* -17..-18 codes are reserved */
-
         -19 => Some("ERROR_DICTIONARY_NOT_SET"),
         -20 => Some("ERROR_INVALID_ARGUMENTS"),
 

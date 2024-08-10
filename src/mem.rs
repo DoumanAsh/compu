@@ -1,11 +1,11 @@
 //!Custom malloc implementation which uses Rust's allocator and provides common interface required by compression libraries
-use core::ffi::{c_void, c_uint};
+use core::ffi::{c_uint, c_void};
 
 extern crate alloc;
 
-use core::{mem, ptr};
 use alloc::alloc::Layout;
 pub use alloc::boxed::Box;
+use core::{mem, ptr};
 
 //Linux & win 32 bit are 8
 #[cfg(not(any(target_os = "macos", all(windows, target_pointer_width = "64"))))]
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn compu_malloc(size: usize) -> *mut c_void {
         let mem = alloc::alloc::alloc(layout);
         if !mem.is_null() {
             ptr::write(mem as *mut usize, size);
-            return mem.add(LAYOUT_OFFSET) as _
+            return mem.add(LAYOUT_OFFSET) as _;
         }
     }
 
@@ -49,13 +49,20 @@ pub unsafe extern "C" fn compu_free(mem: *mut c_void) {
 
 #[allow(unused)]
 ///`malloc` alternative with Rust allocator
-pub(crate) unsafe extern "C" fn compu_malloc_with_state(_: *mut c_void, size: usize) -> *mut c_void {
+pub(crate) unsafe extern "C" fn compu_malloc_with_state(
+    _: *mut c_void,
+    size: usize,
+) -> *mut c_void {
     compu_malloc(size)
 }
 
 #[allow(unused)]
 ///`alloc` alternative with Rust allocator
-pub(crate) unsafe extern "C" fn compu_alloc(_: *mut c_void, items: c_uint, size: c_uint) -> *mut c_void {
+pub(crate) unsafe extern "C" fn compu_alloc(
+    _: *mut c_void,
+    items: c_uint,
+    size: c_uint,
+) -> *mut c_void {
     let size = match (items as usize).checked_mul(size as usize) {
         Some(0) | None => return unlikely_null(),
         Some(size) => size,
@@ -81,7 +88,7 @@ pub mod brotli_rust {
 
     impl<T> Default for BoxedSlice<T> {
         fn default() -> Self {
-            return Self(Vec::new().into_boxed_slice())
+            return Self(Vec::new().into_boxed_slice());
         }
     }
     impl<T> brotli::SliceWrapper<T> for BoxedSlice<T> {
@@ -94,7 +101,7 @@ pub mod brotli_rust {
     impl<T> brotli::SliceWrapperMut<T> for BoxedSlice<T> {
         #[inline(always)]
         fn slice_mut(&mut self) -> &mut [T] {
-            return &mut self.0
+            return &mut self.0;
         }
     }
 
@@ -112,8 +119,7 @@ pub mod brotli_rust {
             BoxedSlice(vec.into_boxed_slice())
         }
 
-        fn free_cell(&mut self, _data: Self::AllocatedMemory) {
-        }
+        fn free_cell(&mut self, _data: Self::AllocatedMemory) {}
     }
 
     impl brotli::enc::BrotliAlloc for BrotliAllocator {}

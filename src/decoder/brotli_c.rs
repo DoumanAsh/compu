@@ -4,14 +4,14 @@ use compu_brotli_sys as sys;
 
 use core::ptr;
 
-use super::{Interface, Decoder, Decode, DecodeStatus, DecodeError};
-use crate::mem::{compu_malloc_with_state, compu_free_with_state};
+use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface};
+use crate::mem::{compu_free_with_state, compu_malloc_with_state};
 
 static BROTLI_C: Interface = Interface::new(
     decode_fn,
     reset_fn,
     drop_fn,
-    describe_error_fn,
+    describe_error_fn
 );
 
 impl Interface {
@@ -52,12 +52,12 @@ unsafe fn decode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_rem
                     sys::BrotliDecoderGetErrorCode(state)
                 };
                 Err(DecodeError(code as _))
-            },
+            }
             sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_SUCCESS => Ok(DecodeStatus::Finished),
             sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT => Ok(DecodeStatus::NeedInput),
             sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT => Ok(DecodeStatus::NeedOutput),
             other => Err(DecodeError(other)),
-        }
+        },
     }
 }
 
@@ -67,7 +67,7 @@ fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
         Some(new) => {
             drop_fn(state);
             Some(new)
-        },
+        }
         None => None,
     }
 }

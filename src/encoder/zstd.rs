@@ -4,9 +4,9 @@ use zstd_sys as sys;
 
 use core::ptr;
 
-use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
-use crate::mem::compu_malloc_with_state;
+use super::{Encode, EncodeOp, EncodeStatus, Encoder, Interface};
 use crate::mem::compu_free_with_state;
+use crate::mem::compu_malloc_with_state;
 
 static ZSTD: Interface = Interface {
     drop_fn,
@@ -52,7 +52,7 @@ pub enum ZstdStrategy {
     ///ZSTD_btultra
     BtUltra = 8,
     ///ZSTD_btultra2
-    BtUltra2 = 9
+    BtUltra2 = 9,
 }
 
 #[derive(Copy, Clone)]
@@ -109,13 +109,12 @@ impl ZstdOptions {
         macro_rules! set {
             ($field:ident => $param:ident) => {{
                 unsafe {
-                    if sys::ZSTD_isError(
-                        sys::ZSTD_CCtx_setParameter(ctx.as_ptr(), sys::ZSTD_cParameter::$param, self.$field as _)
-                    ) != 0 {
+                    let result = sys::ZSTD_isError(sys::ZSTD_CCtx_setParameter(ctx.as_ptr(), sys::ZSTD_cParameter::$param, self.$field as _));
+                    if result != 0 {
                         return None;
                     }
                 }
-            }}
+            }};
         }
 
         set!(level => ZSTD_c_compressionLevel);
@@ -188,14 +187,13 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usi
                 } else {
                     EncodeStatus::Continue
                 }
-            },
+            }
             size => match ZSTD_getErrorCode(size) {
                 //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
                 70 | 80 => EncodeStatus::NeedOutput,
                 _ => EncodeStatus::Error,
-            }
-
-        }
+            },
+        },
     }
 }
 

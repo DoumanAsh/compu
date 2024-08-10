@@ -4,8 +4,8 @@ extern crate alloc;
 
 use core::{mem, ptr};
 
-use alloc::vec::Vec;
 use alloc::collections::TryReserveError;
+use alloc::vec::Vec;
 
 #[derive(Copy, Clone, PartialEq)]
 ///Encoder operation
@@ -51,9 +51,9 @@ pub struct Encode {
 ///Encoder interface
 pub struct Interface {
     //returns new/updated instance, MUST be replaced
-    reset_fn: fn (ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>,
-    encode_fn: unsafe fn (ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode,
-    drop_fn: fn (ptr::NonNull<u8>),
+    reset_fn: fn(ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>,
+    encode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode,
+    drop_fn: fn(ptr::NonNull<u8>),
 }
 
 impl Interface {
@@ -62,11 +62,7 @@ impl Interface {
     ///First argument of every function is state as pointer.
     ///
     ///It is user responsibility to pass correct function pointers
-    pub const fn new(
-        reset_fn: fn (ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>,
-        encode_fn: unsafe fn (ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode,
-        drop_fn: fn (ptr::NonNull<u8>),
-    ) -> Self {
+    pub const fn new(reset_fn: fn(ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>>, encode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize, EncodeOp) -> Encode, drop_fn: fn(ptr::NonNull<u8>)) -> Self {
         Self {
             reset_fn,
             encode_fn,
@@ -152,7 +148,7 @@ impl Interface {
 pub struct Encoder {
     instance: ptr::NonNull<u8>,
     interface: &'static Interface,
-    opts: [u8; 2]
+    opts: [u8; 2],
 }
 
 const _: () = {
@@ -260,11 +256,11 @@ impl Encoder {
                     input = &input[input.len() - result.input_remain..];
                     output.try_reserve_exact(reserve_size)?;
                     continue;
-                },
+                }
                 EncodeStatus::Continue if op == EncodeOp::Finish => {
                     input = &input[input.len() - result.input_remain..];
                     continue;
-                },
+                }
                 _ => break Ok(result),
             }
         }
@@ -302,8 +298,10 @@ impl Encoder {
 
             match result.status {
                 EncodeStatus::Error | EncodeStatus::Finished | EncodeStatus::Continue => break result,
-                EncodeStatus::NeedOutput => if result.output_remain == 0 {
-                    break result
+                EncodeStatus::NeedOutput => {
+                    if result.output_remain == 0 {
+                        break result;
+                    }
                 }
             }
         }
@@ -318,7 +316,7 @@ impl Encoder {
             Some(ptr) => {
                 self.instance = ptr;
                 true
-            },
+            }
             None => false,
         }
     }
@@ -361,12 +359,10 @@ macro_rules! internal_zlib_impl_encode {
             status: match result {
                 sys::Z_STREAM_END => $crate::encoder::EncodeStatus::Finished,
                 //If it is final chunk, zlib may report OK while it needs more output (specifically in case of GZIP)
-                sys::Z_OK => {
-                    if op == sys::Z_FINISH {
-                        $crate::encoder::EncodeStatus::NeedOutput
-                    } else {
-                        $crate::encoder::EncodeStatus::Continue
-                    }
+                sys::Z_OK => if op == sys::Z_FINISH {
+                    $crate::encoder::EncodeStatus::NeedOutput
+                } else {
+                    $crate::encoder::EncodeStatus::Continue
                 },
                 sys::Z_BUF_ERROR => $crate::encoder::EncodeStatus::NeedOutput,
                 _ => $crate::encoder::EncodeStatus::Error,
@@ -378,7 +374,7 @@ macro_rules! internal_zlib_impl_encode {
 #[cfg(any(feature = "brotli", feature = "brotli-c"))]
 mod brotli_common;
 #[cfg(any(feature = "brotli", feature = "brotli-c"))]
-pub use brotli_common::{BrotliOptions, BrotliEncoderMode};
+pub use brotli_common::{BrotliEncoderMode, BrotliOptions};
 #[cfg(feature = "brotli")]
 mod brotli;
 #[cfg(feature = "brotli-c")]
@@ -395,3 +391,22 @@ mod zlib_ng;
 mod zstd;
 #[cfg(feature = "zstd")]
 pub use zstd::{ZstdOptions, ZstdStrategy};
+
+impl<const N: usize> crate::Buffer<N> {
+    ///Decodes `input` using `decoder` returning number of bytes consumed in `input`
+    ///
+    ///Returns tuple with:
+    ///- Number of consumed bytes in `input`
+    ///- Decode status:
+    ///    - In case of `Finished` or `Error`, you should not continue to invoke decode until you reset decoder
+    ///    - In case of `NeedOutput`, you should consume internal buffer.
+    pub fn encode(&mut self, encoder: &mut Encoder, input: &[u8], op: EncodeOp) -> (usize, EncodeStatus) {
+        let spare_capacity = self.spare_capacity_mut();
+        let spare_capacity_len = spare_capacity.len();
+
+        let result = encoder.encode_uninit(input, spare_capacity, op);
+
+        self.cursor = self.cursor + spare_capacity_len - result.output_remain;
+        (input.len() - result.input_remain, result.status)
+    }
+}

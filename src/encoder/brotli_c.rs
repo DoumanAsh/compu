@@ -4,14 +4,14 @@ use compu_brotli_sys as sys;
 
 use core::ptr;
 
-use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
-use crate::mem::{compu_malloc_with_state, compu_free_with_state};
 use super::brotli_common::BrotliOptions;
+use super::{Encode, EncodeOp, EncodeStatus, Encoder, Interface};
+use crate::mem::{compu_free_with_state, compu_malloc_with_state};
 
 static BROTLI_C: Interface = Interface::new(
     reset_fn,
     encode_fn,
-    drop_fn,
+    drop_fn
 );
 
 impl EncodeOp {
@@ -44,7 +44,7 @@ impl Interface {
             Some(ptr) => {
                 options.apply_c(ptr.as_ptr() as _);
                 Some(BROTLI_C.inner_encoder(ptr.cast(), options.inner))
-            },
+            }
             None => None,
         }
     }
@@ -52,7 +52,12 @@ impl Interface {
 
 unsafe fn encode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_remain: usize, mut output: *mut u8, mut output_remain: usize, op: EncodeOp) -> Encode {
     let result = unsafe {
-        sys::BrotliEncoderCompressStream(state.as_ptr() as _, op.into_brotli(), &mut input_remain, &mut input, &mut output_remain, &mut output, ptr::null_mut())
+        sys::BrotliEncoderCompressStream(
+            state.as_ptr() as _, op.into_brotli(),
+            &mut input_remain, &mut input,
+            &mut output_remain, &mut output,
+            ptr::null_mut(),
+        )
     };
 
     let has_more_output = unsafe {
@@ -75,7 +80,7 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, mut input: *const u8, mut input_rem
                     EncodeStatus::Continue
                 }
             }
-        }
+        },
     }
 }
 
@@ -87,7 +92,7 @@ fn reset_fn(state: ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>> 
             drop_fn(state);
             options.apply_c(ptr.as_ptr() as _);
             Some(ptr)
-        },
+        }
         None => None,
     }
 }

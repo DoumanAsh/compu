@@ -12,7 +12,7 @@ pub enum ZlibStrategy {
     ///Strategy optimized for PNG image.
     Rle,
     ///Prevents using dynamic Huffman codes.
-    Fixed
+    Fixed,
 }
 
 impl Default for ZlibStrategy {

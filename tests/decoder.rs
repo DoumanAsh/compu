@@ -1,21 +1,21 @@
-use compu::decoder;
-use decoder::{Interface, DecodeStatus, DecodeError};
+use compu::{decoder, Buffer};
+use decoder::{DecodeError, DecodeStatus, Interface};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
-    include_bytes!("data/alice29.txt")
+    include_bytes!("data/alice29.txt"),
 ];
 const DATA_BROTLI: [&[u8]; 2] = [
     include_bytes!("data/10x10y.compressed.br"),
-    include_bytes!("data/alice29.txt.compressed.br")
+    include_bytes!("data/alice29.txt.compressed.br"),
 ];
 const DATA_GZIP: [&[u8]; 2] = [
     include_bytes!("data/10x10y.compressed.gz"),
-    include_bytes!("data/alice29.txt.compressed.gz")
+    include_bytes!("data/alice29.txt.compressed.gz"),
 ];
 const DATA_ZSTD: [&[u8]; 2] = [
     include_bytes!("data/10x10y.compressed.zstd"),
-    include_bytes!("data/alice29.txt.compressed.zstd")
+    include_bytes!("data/alice29.txt.compressed.zstd"),
 ];
 
 fn test_case(idx: usize, decoder: &mut decoder::Decoder, data: &[u8], compressed: &[u8]) {
@@ -31,20 +31,39 @@ fn test_case(idx: usize, decoder: &mut decoder::Decoder, data: &[u8], compressed
     decoder.reset();
 
     //Partial buffer
-    let result = decoder.decode(compressed, &mut output[..DATA.len()/2]);
+    let result = decoder.decode(compressed, &mut output[..DATA.len() / 2]);
     assert_eq!(result.status, Ok(DecodeStatus::NeedOutput));
     assert_eq!(result.output_remain, 0);
 
     //decoders like Brotli come with own buffers that store everything inside, while zlib will wait
     //for more output buffer to be available before proceeding.
     let remaining = &compressed[compressed.len() - result.input_remain..];
-    let result = decoder.decode(remaining, &mut output[DATA.len()/2..]);
+    let result = decoder.decode(remaining, &mut output[DATA.len() / 2..]);
     assert_eq!(result.status, Ok(DecodeStatus::Finished));
     assert_eq!(data, output);
     decoder.reset();
 
+    //Buffered decoder
+    let mut buffer = Buffer::<4096>::new();
+    let mut buffer_input = compressed;
+    output.clear();
+    loop {
+        let (consumed, status) = match buffer.decode(decoder, buffer_input) {
+            Ok(result) => result,
+            Err(error) => panic!("Unexpected failure: {:?}", decoder.describe_error(error)),
+        };
+        buffer_input = &buffer_input[consumed..];
+        output.extend_from_slice(buffer.data());
+        buffer.consume();
+        if status == DecodeStatus::Finished {
+            break;
+        }
+    }
+    assert_eq!(data, output);
+    decoder.reset();
+
     //Full vec
-    let mut output = Vec::new();
+    output.clear();
     let result = decoder.decode_vec_full(compressed, output.as_mut()).expect("success");
     assert_eq!(result.status, Ok(DecodeStatus::Finished));
     assert_eq!(result.input_remain, 0);

@@ -1,17 +1,17 @@
 //! `brotli` interface implementation
 
-use core::{slice, ptr};
-use crate::mem::Box;
-use crate::mem::brotli_rust::BrotliAllocator;
-use super::{Interface, Encoder, Encode, EncodeStatus, EncodeOp};
 use super::brotli_common::BrotliOptions;
+use super::{Encode, EncodeOp, EncodeStatus, Encoder, Interface};
+use crate::mem::brotli_rust::BrotliAllocator;
+use crate::mem::Box;
+use core::{ptr, slice};
 
 pub(crate) type Instance = brotli::enc::encode::BrotliEncoderStateStruct<BrotliAllocator>;
 
 static BROTLI_RUST: Interface = Interface::new(
     reset_fn,
     encode_fn,
-    drop_fn,
+    drop_fn
 );
 
 impl Interface {
@@ -60,12 +60,11 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
     };
 
     let result = brotli::enc::encode::BrotliEncoderCompressStream(
-        state,
-        op.into_rust_brotli(),
-        &mut input_remain, input, &mut 0,
-        &mut output_remain, output, &mut 0,
-        &mut None,
-        &mut |_a, _b, _c, _d| (),
+        state, op.into_rust_brotli(), &mut input_remain,
+        input, &mut 0,
+        &mut output_remain, output,
+        &mut 0, &mut None,
+        &mut |_a, _b, _c, _d| ()
     );
     let has_more_output = brotli::enc::encode::BrotliEncoderHasMoreOutput(state);
 
@@ -86,16 +85,14 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
                     EncodeStatus::Continue
                 }
             }
-        }
+        },
     }
 }
 
 #[inline]
 fn reset_fn(state: ptr::NonNull<u8>, opts: [u8; 2]) -> Option<ptr::NonNull<u8>> {
     let options = BrotliOptions::from_raw(opts);
-    let mut state = unsafe {
-        Box::from_raw(state.as_ptr() as *mut Instance)
-    };
+    let mut state = unsafe { Box::from_raw(state.as_ptr() as *mut Instance) };
 
     *state = instance();
     options.apply_rust(&mut state);

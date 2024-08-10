@@ -7,7 +7,7 @@ pub enum BrotliEncoderMode {
     ///Text mode. UTF-8.
     Text,
     ///WOFF 2.0 mode
-    Font
+    Font,
 }
 
 ///Brotli options
@@ -29,9 +29,7 @@ impl BrotliOptions {
     #[inline(always)]
     ///Creates default instance
     pub(crate) const fn from_raw(inner: [u8; 2]) -> Self {
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 
     #[inline(always)]
@@ -63,11 +61,13 @@ impl BrotliOptions {
         unsafe {
             let quality = self.inner[Self::QUALITY_IDX];
             if quality > 0 {
-                debug_assert!(sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_QUALITY, quality as _) != 0);
+                let result = sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_QUALITY, quality as _);
+                debug_assert!(result != 0);
             }
             let mode = self.inner[Self::MODE_IDX];
             if mode > 0 {
-                debug_assert!(sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_MODE, mode as _) != 0);
+                let result = sys::BrotliEncoderSetParameter(state, sys::BrotliEncoderParameter_BROTLI_PARAM_MODE, mode as _);
+                debug_assert!(result != 0);
             }
         }
     }
@@ -76,26 +76,14 @@ impl BrotliOptions {
     pub(crate) fn apply_rust(&self, state: &mut crate::encoder::brotli::Instance) {
         let quality = self.inner[Self::QUALITY_IDX];
         if quality > 0 {
-            debug_assert_ne!(
-                brotli::enc::encode::BrotliEncoderSetParameter(
-                    state,
-                    brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_QUALITY,
-                    quality as _,
-                ),
-                0
-            )
+            let result = brotli::enc::encode::BrotliEncoderSetParameter(state, brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_QUALITY, quality as _);
+            debug_assert_ne!(result, 0)
         }
 
         let mode = self.inner[Self::MODE_IDX];
         if mode > 0 {
-            debug_assert_ne!(
-                brotli::enc::encode::BrotliEncoderSetParameter(
-                    state,
-                    brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_MODE,
-                    mode as _,
-                ),
-                0
-            )
+            let result = brotli::enc::encode::BrotliEncoderSetParameter(state, brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_MODE, mode as _,);
+            debug_assert_ne!(result, 0)
         }
     }
 }

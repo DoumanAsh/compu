@@ -3,8 +3,8 @@ extern crate alloc;
 
 use core::{mem, ptr};
 
-use alloc::vec::Vec;
 use alloc::collections::TryReserveError;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Possible compression archive based on known signatures
@@ -35,7 +35,7 @@ impl Detection {
                 if $word == GZIP_HEADER {
                     return Some(Detection::Gzip);
                 }
-            }
+            };
         }
 
         //Signature:
@@ -58,32 +58,32 @@ impl Detection {
                     match bytes[0] {
                         0x78 => if let 0x01 | 0x5e | 0x9c | 0xda = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
-                        0x08 => if let 0x1d | 0x5b | 0x99 | 0xd7 =  bytes[1] {
+                        }
+                        0x08 => if let 0x1d | 0x5b | 0x99 | 0xd7 = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x18 => if let 0x19 | 0x57 | 0x95 | 0xd3 = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x28 => if let 0x15 | 0x53 | 0x91 | 0xcf = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x38 => if let 0x11 | 0x4f | 0x8d | 0xcb = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x48 => if let 0x0d | 0x4b | 0x89 | 0xc7 = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x58 => if let 0x09 | 0x47 | 0x85 | 0xc3 = bytes[1] {
                             return Some(Detection::Zlib);
-                        },
+                        }
                         0x68 => if let 0x05 | 0x43 | 0x81 | 0xde = bytes[1] {
                             Some(Detection::Zlib);
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     }
                 }
-            }
+            };
         }
 
         macro_rules! detect_zstd {
@@ -91,7 +91,7 @@ impl Detection {
                 if $dword == ZSTD_HEADER {
                     return Some(Detection::Zstd);
                 }
-            }
+            };
         }
 
         if bytes.len() < mem::size_of::<u16>() {
@@ -160,8 +160,8 @@ pub struct Decode {
 pub struct Interface {
     decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode,
     //returns new/updated instance, MUST be replaced
-    reset_fn: fn (ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>,
-    drop_fn: fn (ptr::NonNull<u8>),
+    reset_fn: fn(ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>,
+    drop_fn: fn(ptr::NonNull<u8>),
     describe_error_fn: fn(i32) -> Option<&'static str>,
 }
 
@@ -171,12 +171,7 @@ impl Interface {
     ///First argument of every function is state as pointer.
     ///
     ///It is user responsibility to pass correct function pointers
-    pub const fn new(
-        decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode,
-        reset_fn: fn (ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>,
-        drop_fn: fn (ptr::NonNull<u8>),
-        describe_error_fn: fn(i32) -> Option<&'static str>,
-    ) -> Self {
+    pub const fn new(decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode, reset_fn: fn(ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>, drop_fn: fn(ptr::NonNull<u8>), describe_error_fn: fn(i32) -> Option<&'static str>) -> Self {
         Self {
             decode_fn,
             reset_fn,
@@ -273,7 +268,7 @@ impl Interface {
 ///```
 pub struct Decoder {
     instance: ptr::NonNull<u8>,
-    interface: &'static Interface
+    interface: &'static Interface,
 }
 
 const _: () = {
@@ -383,7 +378,7 @@ impl Decoder {
                     input = &input[input.len() - result.input_remain..];
                     output.try_reserve_exact(reserve_size)?;
                     continue;
-                },
+                }
                 _ => break Ok(result),
             }
         }
@@ -421,9 +416,11 @@ impl Decoder {
 
             match result.status {
                 Ok(DecodeStatus::Finished | DecodeStatus::NeedInput) => break result,
-                Ok(DecodeStatus::NeedOutput) => if result.output_remain == 0 {
-                    break result
-                },
+                Ok(DecodeStatus::NeedOutput) => {
+                    if result.output_remain == 0 {
+                        break result;
+                    }
+                }
                 Err(_) => break result,
             }
         }
@@ -438,7 +435,7 @@ impl Decoder {
             Some(ptr) => {
                 self.instance = ptr;
                 true
-            },
+            }
             None => false,
         }
     }
@@ -463,18 +460,14 @@ macro_rules! internal_zlib_impl_decode {
     ($state:ident, $input:ident, $input_len:ident, $output:ident, $output_len:ident) => {{
         use $crate::decoder::DecodeStatus;
 
-        let state = unsafe {
-            &mut *($state.as_ptr() as *mut State)
-        };
+        let state = unsafe { &mut *($state.as_ptr() as *mut State) };
         state.inner.avail_out = $output_len as _;
         state.inner.next_out = $output;
 
         state.inner.avail_in = $input_len as _;
         state.inner.next_in = $input as *mut _;
 
-        let result = unsafe {
-            sys::inflate(&mut state.inner, 0)
-        };
+        let result = unsafe { sys::inflate(&mut state.inner, 0) };
 
         $crate::decoder::Decode {
             input_remain: state.inner.avail_in as usize,
@@ -486,26 +479,51 @@ macro_rules! internal_zlib_impl_decode {
                 },
                 sys::Z_STREAM_END => Ok(DecodeStatus::Finished),
                 sys::Z_BUF_ERROR => Ok(DecodeStatus::NeedOutput),
-                other => Err(crate::decoder::DecodeError(other))
-            }
+                other => Err(crate::decoder::DecodeError(other)),
+            },
         }
-
-    }}
+    }};
 }
 
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
 mod zlib_common;
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
 pub use zlib_common::ZlibMode;
+#[cfg(feature = "brotli-rust")]
+mod brotli;
+#[cfg(feature = "brotli-c")]
+mod brotli_c;
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 mod zlib;
 #[cfg(feature = "zlib-ng")]
 mod zlib_ng;
-#[cfg(feature = "brotli-c")]
-mod brotli_c;
-#[cfg(feature = "brotli-rust")]
-mod brotli;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]
 pub use zstd::ZstdOptions;
+
+impl<const N: usize> crate::Buffer<N> {
+    ///Decodes `input` using `decoder` returning number of bytes consumed in `input`
+    ///
+    ///On success returns tuple with:
+    ///- Number of consumed bytes in `input`
+    ///- Decode status:
+    ///    - In case of `Finished`, you should not continue to invoke decode until you reset decoder
+    ///    - In case of `NeedOutput`, you should consume internal buffer.
+    ///
+    ///In case of error, internal buffer size will not change
+    pub fn decode(&mut self, decoder: &mut Decoder, input: &[u8]) -> Result<(usize, DecodeStatus), DecodeError> {
+        let spare_capacity = self.spare_capacity_mut();
+        let spare_capacity_len = spare_capacity.len();
+
+        let result = decoder.decode_uninit(input, spare_capacity);
+
+        match result.status {
+            Ok(status) => {
+                self.cursor = self.cursor + spare_capacity_len - result.output_remain;
+                Ok((input.len() - result.input_remain, status))
+            }
+            Err(error) => Err(error),
+        }
+    }
+}

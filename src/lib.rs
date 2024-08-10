@@ -92,12 +92,23 @@
 
 //#![no_std]
 #![warn(missing_docs)]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::style, clippy::derivable_impls))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    allow(clippy::style, clippy::derivable_impls)
+)]
 
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "brotli-c", feature = "zstd"))]
-pub(crate) mod utils;
 pub mod decoder;
-pub use decoder::{Decoder, Decode, DecodeStatus, DecodeError, Detection};
+#[cfg(any(
+    feature = "zlib",
+    feature = "zlib-static",
+    feature = "zlib-ng",
+    feature = "brotli-c",
+    feature = "zstd"
+))]
+pub(crate) mod utils;
+pub use decoder::{Decode, DecodeError, DecodeStatus, Decoder, Detection};
 pub mod encoder;
-pub use encoder::{Encoder, Encode, EncodeOp, EncodeStatus};
+pub use encoder::{Encode, EncodeOp, EncodeStatus, Encoder};
+mod buffer;
 pub mod mem;
+pub use buffer::Buffer;

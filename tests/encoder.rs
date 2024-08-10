@@ -1,10 +1,10 @@
-use compu::{encoder, decoder};
-use encoder::{Encoder, Interface, EncodeStatus, EncodeOp};
-use decoder::{Decoder, DecodeStatus, Detection};
+use compu::{decoder, encoder, Buffer};
+use decoder::{DecodeStatus, Decoder, Detection};
+use encoder::{EncodeOp, EncodeStatus, Encoder, Interface};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
-    include_bytes!("data/alice29.txt")
+    include_bytes!("data/alice29.txt"),
 ];
 
 fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u8], expected_detection: Detection) {
@@ -37,6 +37,27 @@ fn test_case(idx: usize, encoder: &mut Encoder, decoder: &mut Decoder, data: &[u
     assert_eq!(result.status, Ok(DecodeStatus::Finished));
     assert_eq!(data, decompressed);
 
+    //Buffered encoder
+    encoder.reset();
+    let mut buffer = Buffer::<4096>::new();
+    let mut buffer_input = data;
+    loop {
+        let (consumed, status) = buffer.encode(encoder, buffer_input, EncodeOp::Finish);
+        buffer_input = &buffer_input[consumed..];
+        compressed_full.extend_from_slice(buffer.data());
+        buffer.consume();
+
+        match status {
+            EncodeStatus::Error => panic!("unexpected error"),
+            EncodeStatus::Finished => break,
+            _ => continue,
+        }
+    }
+    assert_eq!(compressed.len(), compressed_full.len(), "compressed != compressed_full");
+    assert!(compressed == compressed_full);
+    compressed_full.clear();
+
+    //Full vec encoding
     encoder.reset();
     let result = encoder.encode_vec_full(data, compressed_full.as_mut(), EncodeOp::Finish).expect("Success");
     assert_eq!(result.status, EncodeStatus::Finished);
@@ -136,7 +157,7 @@ fn test_case_empty_final(idx: usize, encoder: &mut Encoder, decoder: &mut Decode
         assert!(result.output_remain > 0);
 
         unsafe {
-            decompressed.set_len(current_len + output_len - result.output_remain)
+            decompressed.set_len(current_len + output_len - result.output_remain);
         }
         let status = result.status.expect("to decode");
         if status == DecodeStatus::Finished {

@@ -5,11 +5,9 @@ use core::ffi::CStr;
 ///If that's not the case, do not use this function
 pub fn convert_c_str(ptr: *const i8) -> Option<&'static str> {
     if ptr.is_null() {
-        return None
+        return None;
     } else {
-        let text = unsafe {
-            CStr::from_ptr(ptr)
-        };
+        let text = unsafe { CStr::from_ptr(ptr) };
         text.to_str().ok()
     }
 }

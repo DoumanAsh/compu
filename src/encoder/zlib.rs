@@ -4,10 +4,10 @@ extern crate alloc;
 
 use libz_sys as sys;
 
-use core::ptr;
 use alloc::boxed::Box;
+use core::ptr;
 
-use super::{Interface, Encoder, Encode, EncodeOp, ZlibOptions, ZlibStrategy};
+use super::{Encode, EncodeOp, Encoder, Interface, ZlibOptions, ZlibStrategy};
 use crate::mem::{compu_alloc, compu_free_with_state};
 
 static ZLIB: Interface = Interface {
@@ -23,9 +23,7 @@ struct State {
 
 impl State {
     fn reset(&mut self) -> bool {
-        unsafe {
-            sys::deflateReset(&mut self.inner) == sys::Z_OK
-        }
+        unsafe { sys::deflateReset(&mut self.inner) == sys::Z_OK }
     }
 }
 
@@ -68,7 +66,7 @@ impl Interface {
             ZlibStrategy::Filtered => sys::Z_FILTERED,
             ZlibStrategy::HuffmanOnly => sys::Z_HUFFMAN_ONLY,
             ZlibStrategy::Rle => sys::Z_RLE,
-            ZlibStrategy::Fixed => sys::Z_FIXED
+            ZlibStrategy::Fixed => sys::Z_FIXED,
         };
         let result = unsafe {
             sys::deflateInit2_(&mut instance.inner, opts.compression as _, sys::Z_DEFLATED, max_bits, opts.mem_level as _, strategy, sys::zlibVersion(), core::mem::size_of::<sys::z_stream>() as _)
