@@ -42,7 +42,7 @@ pub unsafe extern "C" fn compu_free(mem: *mut c_void) {
     if !mem.is_null() {
         let mem = (mem as *mut u8).offset(-(LAYOUT_OFFSET as isize));
         let size = ptr::read(mem as *const usize);
-        let layout = Layout::from_size_align_unchecked(size, MIN_ALIGN);
+        let layout = Layout::from_size_align_unchecked(size + LAYOUT_OFFSET, MIN_ALIGN);
         alloc::alloc::dealloc(mem, layout);
     }
 }
