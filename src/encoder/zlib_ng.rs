@@ -22,6 +22,12 @@ struct State {
 }
 
 impl State {
+    #[inline(always)]
+    fn as_mut(&mut self) -> &mut sys::z_stream {
+        &mut self.inner
+    }
+
+    #[inline(always)]
     fn reset(&mut self) -> bool {
         unsafe { sys::deflateReset(&mut self.inner) == sys::Z_OK }
     }

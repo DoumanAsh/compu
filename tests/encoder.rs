@@ -224,6 +224,17 @@ fn should_encode_and_decode_zlib_ng_gzip() {
     }
 }
 
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_and_decode_zlib_rust_gzip() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Gzip).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
+    }
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_encode_and_decode_zlib() {
@@ -246,6 +257,17 @@ fn should_encode_and_decode_zlib_ng() {
     }
 }
 
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_and_decode_zlib_rust() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Zlib);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Zlib).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zlib);
+    }
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_encode_and_decode_zlib_deflate() {
@@ -263,6 +285,17 @@ fn should_encode_and_decode_zlib_ng_deflate() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Deflate).expect("create zlib-ng decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+    }
+}
+
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_and_decode_zlib_rust_deflate() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
+    let mut encoder = Interface::zlib_ng(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Deflate).expect("create zlib-rust decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
@@ -320,6 +353,17 @@ fn should_encode_with_empty_final_and_decode_zlib_ng_gzip() {
     }
 }
 
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_with_empty_final_and_decode_zlib_rust_gzip() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Gzip).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
+    }
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_encode_with_empty_final_and_decode_zlib() {
@@ -342,6 +386,17 @@ fn should_encode_with_empty_final_and_decode_zlib_ng() {
     }
 }
 
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_with_empty_final_and_decode_zlib_rust() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Zlib);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Zlib).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
+    }
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_encode_with_empty_final_and_decode_zlib_deflate() {
@@ -359,6 +414,17 @@ fn should_encode_with_empty_final_and_decode_zlib_ng_deflate() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Deflate).expect("create zlib-ng decoder");
+    for idx in 0..DATA.len() {
+        test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
+    }
+}
+
+#[cfg(feature = "zlib-rust")]
+#[test]
+fn should_encode_with_empty_final_and_decode_zlib_rust_deflate() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Deflate).expect("create zlib-rust decoder");
     for idx in 0..DATA.len() {
         test_case_empty_final(idx, &mut encoder, &mut decoder, DATA[idx]);
     }
@@ -416,6 +482,17 @@ fn should_encode_and_decode_zlib_ng_gzip_bytes() {
     }
 }
 
+#[cfg(all(feature = "zlib-rust", feature = "bytes"))]
+#[test]
+fn should_encode_and_decode_zlib_rust_gzip_bytes() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Gzip).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case_bytes(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
+    }
+}
+
 #[cfg(all(any(feature = "zlib", feature = "zlib-static"), feature = "bytes"))]
 #[test]
 fn should_encode_and_decode_zlib_bytes() {
@@ -438,6 +515,17 @@ fn should_encode_and_decode_zlib_ng_bytes() {
     }
 }
 
+#[cfg(all(feature = "zlib-rust", feature = "bytes"))]
+#[test]
+fn should_encode_and_decode_zlib_rust_bytes() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Zlib);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Zlib).expect("create zlib-rust decoder");
+    for idx in 0..DATA.len() {
+        test_case_bytes(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zlib);
+    }
+}
+
 #[cfg(all(any(feature = "zlib", feature = "zlib-static"), feature = "bytes"))]
 #[test]
 fn should_encode_and_decode_zlib_deflate_bytes() {
@@ -455,6 +543,17 @@ fn should_encode_and_decode_zlib_ng_deflate_bytes() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
     let mut encoder = Interface::zlib_ng(options).expect("create zlib-ng encoder");
     let mut decoder = decoder::Interface::zlib_ng(decoder::ZlibMode::Deflate).expect("create zlib-ng decoder");
+    for idx in 0..DATA.len() {
+        test_case_bytes(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+    }
+}
+
+#[cfg(all(feature = "zlib-rust", feature = "bytes"))]
+#[test]
+fn should_encode_and_decode_zlib_rust_deflate_bytes() {
+    let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Deflate);
+    let mut encoder = Interface::zlib_rust(options).expect("create zlib-rust encoder");
+    let mut decoder = decoder::Interface::zlib_rust(decoder::ZlibMode::Deflate).expect("create zlib-rust decoder");
     for idx in 0..DATA.len() {
         test_case_bytes(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }

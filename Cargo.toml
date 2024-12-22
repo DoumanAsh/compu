@@ -31,6 +31,12 @@ version = "1.1.9"
 optional = true
 default-features = false
 
+[dependencies.zlib-rs]
+version = "0.4.1"
+optional = true
+default-features = false
+features = ["rust-allocator"]
+
 [dependencies.zstd-sys]
 version = "2.0.8"
 optional = true
@@ -57,6 +63,8 @@ zlib = ["libz-sys"]
 zlib-static = ["libz-sys/static"]
 #zlib-ng bindings (requires cmake)
 zlib-ng = ["libz-ng-sys"]
+#zlib-rs
+zlib-rust = ["zlib-rs"]
 #enables ZSTD
 zstd = ["zstd-sys"]
 

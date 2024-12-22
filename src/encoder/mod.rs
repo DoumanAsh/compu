@@ -330,7 +330,7 @@ impl Drop for Encoder {
 }
 
 //ZLIB macro has to be defined before declaring modules
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 macro_rules! internal_zlib_impl_encode {
     ($state:ident, $input:ident, $input_remain:ident, $output:ident, $output_remain:ident, $op:ident) => {{
         let op = match $op {
@@ -349,9 +349,7 @@ macro_rules! internal_zlib_impl_encode {
         state.inner.avail_in = $input_remain as _;
         state.inner.next_in = $input as *mut _;
 
-        let result = unsafe {
-            sys::deflate(&mut state.inner, op)
-        };
+        let result = sys::deflate(state.as_mut(), op);
 
         $crate::encoder::Encode {
             input_remain: state.inner.avail_in as usize,
@@ -379,14 +377,16 @@ pub use brotli_common::{BrotliEncoderMode, BrotliOptions};
 mod brotli;
 #[cfg(feature = "brotli-c")]
 mod brotli_c;
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rs"))]
 mod zlib_common;
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rs"))]
 pub use zlib_common::*;
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 mod zlib;
 #[cfg(feature = "zlib-ng")]
 mod zlib_ng;
+#[cfg(feature = "zlib-rust")]
+mod zlib_rust;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]

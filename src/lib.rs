@@ -16,9 +16,10 @@
 //!
 //!- `brotli-c` - Enables `brotli` interface using C library.
 //!- `brotli-rust` - Enables `brotli` interface using pure Rust library.
-//!- `zlib-ng` - Enables `zlib-ng` interface.
 //!- `zlib` - Enables `zlib` interface.
 //!- `zlib-static` - Enables `zlib` interface with `static` feature.
+//!- `zlib-ng` - Enables `zlib-ng` interface.
+//!- `zlib-rust` - Enables `zlib-rs` interface.
 //!- `zstd` - Enables `zstd` interface.
 //!- `bytes` - Enables `bytes` support
 //!

@@ -455,7 +455,7 @@ impl Drop for Decoder {
 }
 
 //ZLIB macro has to be defined before declaring modules
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 macro_rules! internal_zlib_impl_decode {
     ($state:ident, $input:ident, $input_len:ident, $output:ident, $output_len:ident) => {{
         use $crate::decoder::DecodeStatus;
@@ -467,7 +467,7 @@ macro_rules! internal_zlib_impl_decode {
         state.inner.avail_in = $input_len as _;
         state.inner.next_in = $input as *mut _;
 
-        let result = unsafe { sys::inflate(&mut state.inner, 0) };
+        let result = sys::inflate(state.as_mut(), DEFAULT_INFLATE);
 
         $crate::decoder::Decode {
             input_remain: state.inner.avail_in as usize,
@@ -479,15 +479,15 @@ macro_rules! internal_zlib_impl_decode {
                 },
                 sys::Z_STREAM_END => Ok(DecodeStatus::Finished),
                 sys::Z_BUF_ERROR => Ok(DecodeStatus::NeedOutput),
-                other => Err(crate::decoder::DecodeError(other)),
+                other => Err(crate::decoder::DecodeError(other as _)),
             },
         }
     }};
 }
 
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 mod zlib_common;
-#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng"))]
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 pub use zlib_common::ZlibMode;
 #[cfg(feature = "brotli-rust")]
 mod brotli;
@@ -497,6 +497,8 @@ mod brotli_c;
 mod zlib;
 #[cfg(feature = "zlib-ng")]
 mod zlib_ng;
+#[cfg(feature = "zlib-rust")]
+mod zlib_rust;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]

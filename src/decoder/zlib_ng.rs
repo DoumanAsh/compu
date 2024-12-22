@@ -12,6 +12,8 @@ use super::zlib_common::ZlibMode;
 use super::{Decode, Decoder, Interface};
 use crate::mem::{compu_alloc, compu_free_with_state};
 
+const DEFAULT_INFLATE: i32 = 0;
+
 extern "C" {
     #[link_name = "zng_zError"]
     pub fn zError(code: c_int) -> *const i8;
@@ -30,6 +32,12 @@ struct State {
 }
 
 impl State {
+    #[inline(always)]
+    fn as_mut(&mut self) -> &mut sys::z_stream {
+        &mut self.inner
+    }
+
+    #[inline(always)]
     fn reset(&mut self) -> bool {
         unsafe {
             sys::inflateReset(&mut self.inner) == sys::Z_OK

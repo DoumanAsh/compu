@@ -73,10 +73,11 @@ jobs:
         cargo check --features zlib
         cargo check --features zlib-static
         cargo check --features zlib-ng
+        cargo check --features zlib-rust
         cargo check --features zstd
 
     - name: Valgrind Test
       if: runner.os == 'Linux'
       env:
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "valgrind --leak-check=full --error-exitcode=1 --gen-suppressions=all --suppressions=valgrind.supp"
-      run: cargo test --release --features brotli-c,brotli-rust,zlib-static,zlib-ng,zstd,bytes
+      run: cargo test --release --features brotli-c,brotli-rust,zlib-static,zlib-ng,zstd,zlib-rust,bytes

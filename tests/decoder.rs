@@ -141,7 +141,18 @@ fn should_decode_zlib_gzip() {
 #[cfg(feature = "zlib-ng")]
 #[test]
 fn should_decode_zlib_ng_gzip() {
-    let mut decoder = Interface::zlib(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
+    let mut decoder = Interface::zlib_ng(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
+    }
+}
+
+#[cfg(any(feature = "zlib-rust"))]
+#[test]
+fn should_decode_zlib_rust_gzip() {
+    let mut decoder = Interface::zlib_rust(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
