@@ -76,14 +76,14 @@ impl BrotliOptions {
     pub(crate) fn apply_rust(&self, state: &mut crate::encoder::brotli::Instance) {
         let quality = self.inner[Self::QUALITY_IDX];
         if quality > 0 {
-            let result = brotli::enc::encode::BrotliEncoderSetParameter(state, brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_QUALITY, quality as _);
-            debug_assert_ne!(result, 0)
+            let result = state.set_parameter(brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_QUALITY, quality as _);
+            debug_assert!(result);
         }
 
         let mode = self.inner[Self::MODE_IDX];
         if mode > 0 {
-            let result = brotli::enc::encode::BrotliEncoderSetParameter(state, brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_MODE, mode as _,);
-            debug_assert_ne!(result, 0)
+            let result = state.set_parameter(brotli::enc::encode::BrotliEncoderParameter::BROTLI_PARAM_MODE, mode as _);
+            debug_assert!(result);
         }
     }
 }

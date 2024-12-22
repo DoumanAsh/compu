@@ -111,7 +111,6 @@ fn should_decode_brotli_rust() {
     let mut decoder = Interface::brotli_rust();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
-        test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
     }

@@ -87,8 +87,9 @@ pub mod brotli_rust {
     pub struct BoxedSlice<T>(Box<[T]>);
 
     impl<T> Default for BoxedSlice<T> {
+        #[inline(always)]
         fn default() -> Self {
-            return Self(Vec::new().into_boxed_slice());
+            Self(Vec::new().into_boxed_slice())
         }
     }
     impl<T> brotli::SliceWrapper<T> for BoxedSlice<T> {
@@ -101,7 +102,7 @@ pub mod brotli_rust {
     impl<T> brotli::SliceWrapperMut<T> for BoxedSlice<T> {
         #[inline(always)]
         fn slice_mut(&mut self) -> &mut [T] {
-            return &mut self.0;
+            &mut self.0
         }
     }
 

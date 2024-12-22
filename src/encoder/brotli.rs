@@ -41,7 +41,7 @@ impl EncodeOp {
 }
 
 fn instance() -> Instance {
-    brotli::enc::encode::BrotliEncoderCreateInstance(Default::default())
+    Instance::new(Default::default())
 }
 
 unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain: usize, output: *mut u8, mut output_remain: usize, op: EncodeOp) -> Encode {
@@ -59,25 +59,24 @@ unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain:
         slice::from_raw_parts_mut(output, output_remain)
     };
 
-    let result = brotli::enc::encode::BrotliEncoderCompressStream(
-        state, op.into_rust_brotli(), &mut input_remain,
+    let result = state.compress_stream(op.into_rust_brotli(), &mut input_remain,
         input, &mut 0,
         &mut output_remain, output,
         &mut 0, &mut None,
         &mut |_a, _b, _c, _d| ()
     );
-    let has_more_output = brotli::enc::encode::BrotliEncoderHasMoreOutput(state);
+    let has_more_output = state.has_more_output();
 
     Encode {
         input_remain,
         output_remain,
         status: match result {
-            0 => match has_more_output {
-                0 => EncodeStatus::Error,
-                _ => EncodeStatus::NeedOutput,
+            false => match has_more_output {
+                false => EncodeStatus::Error,
+                true => EncodeStatus::NeedOutput,
             },
-            _ => {
-                if has_more_output != 0 {
+            true => {
+                if has_more_output {
                     EncodeStatus::NeedOutput
                 } else if op == EncodeOp::Finish {
                     EncodeStatus::Finished
