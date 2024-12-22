@@ -92,10 +92,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
-#![cfg_attr(
-    feature = "cargo-clippy",
-    allow(clippy::style, clippy::derivable_impls)
-)]
+#![allow(clippy::style, clippy::derivable_impls)]
 
 pub mod decoder;
 #[cfg(any(
