@@ -1,6 +1,6 @@
 [package]
 name = "compu"
-version = "1.4.0"
+version = "1.4.1"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 keywords = ["brotli", "zstd", "zlib"]
@@ -32,10 +32,11 @@ optional = true
 default-features = false
 
 [dependencies.zlib-rs]
-version = "0.4.1"
+version = "0.6"
 optional = true
 default-features = false
-features = ["rust-allocator"]
+# https://github.com/trifectatechfoundation/zlib-rs/blob/main/zlib-rs/src/lib.rs#L11C16-L11C29
+features = ["rust-allocator", "__internal-api"]
 
 [dependencies.zstd-sys]
 version = "2.0.8"
@@ -45,7 +46,7 @@ default-features = false
 features = ["experimental"]
 
 [dependencies.brotli]
-version = "7"
+version = "8"
 optional = true
 default-features = false
 
@@ -69,4 +70,4 @@ zlib-rust = ["zlib-rs"]
 zstd = ["zstd-sys"]
 
 [package.metadata.docs.rs]
-features = ["zstd", "brotli-c", "brotli-rust", "zlib", "zlib-ng", "zlib-rust"]
+features = ["zstd", "brotli-c", "brotli-rust", "zlib", "zlib-ng", "zlib-rust", "bytes"]

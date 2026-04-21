@@ -8,7 +8,6 @@ use core::{ptr, mem};
 use super::{Encode, EncodeOp, Encoder, Interface, ZlibOptions, ZlibStrategy};
 
 mod sys {
-    pub use zlib_rs::allocate::Allocator;
     pub use zlib_rs::c_api::z_stream;
     pub use zlib_rs::deflate::*;
     pub use zlib_rs::ReturnCode;
@@ -35,7 +34,7 @@ pub struct State {
 impl State {
     #[inline(always)]
     pub fn new() -> Self {
-        Self {
+        let mut this = Self {
             inner: sys::z_stream {
                 next_in: ptr::null_mut(),
                 avail_in: 0,
@@ -45,14 +44,16 @@ impl State {
                 total_out: 0,
                 msg: ptr::null_mut(),
                 state: ptr::null_mut(),
-                zalloc: Some(sys::Allocator::RUST.zalloc),
-                zfree: Some(sys::Allocator::RUST.zfree),
+                zalloc: None,
+                zfree: None,
                 opaque: ptr::null_mut(),
                 data_type: 0,
                 adler: 0,
                 reserved: 0,
             }
-        }
+        };
+        this.inner.configure_default_rust_allocator();
+        this
     }
 
     #[inline(always)]
