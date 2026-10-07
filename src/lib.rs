@@ -2,7 +2,7 @@
 //!
 //!## API
 //!
-//!API is mostly thin layer that provides uniform behavior for all algorithms the best it can.
+//!API is mostly thin interface that provides uniform behavior for all algorithms the best it can.
 //!
 //!Please read documentation to see how to use:
 //!
@@ -14,16 +14,24 @@
 //!## Features
 //!
 //!All features are off by default.
+//!
 //!This crate requires `alloc` to be available with system allocator set.
 //!
-//!- `brotli-c` - Enables `brotli` interface using C library.
-//!- `brotli-rust` - Enables `brotli` interface using pure Rust library.
-//!- `zlib` - Enables `zlib` interface.
-//!- `zlib-static` - Enables `zlib` interface with `static` feature.
-//!- `zlib-ng` - Enables `zlib-ng` interface.
-//!- `zlib-rust` - Enables `zlib-rs` interface.
-//!- `zstd` - Enables `zstd` interface.
-//!- `bytes` - Enables `bytes` support
+//!### Codecs
+//!
+//!  Feature | Description | Encoder | Decoder |
+//! ---------|------------ | ------- | ------- |
+//!  `brotli-c` | Enables `brotli` interface using C library | [decoder::BrotliC] | [encoder::BrotliC]
+//!  `brotli-rust` | Enables `brotli` interface using Rust library | [decoder::BrotliRust] | [encoder::BrotliRust]
+//!  `zlib` | Enables `zlib` interface using libz library | [decoder::ZlibC] | [encoder::ZlibC]
+//!  `zlib-static` | Enables `zlib` interface using libz library with 'static' feature | [decoder::ZlibC] | [encoder::ZlibC]
+//!  `zlib-ng` | Enables `zlib` interface using libz-ng library | [decoder::ZlibNg] | [encoder::ZlibNg]
+//!  `zlib-rust` | Enables `zlib` interface using zlib-rs library | [decoder::ZlibRust] | [encoder::ZlibRust]
+//!  `zstd` | Enables `zstd` interface using zstd C library | [decoder::ZstdC] | [encoder::ZstdC]
+//!
+//!### Misc
+//!
+//!- `bytes` - Enables `bytes` support via [decoder::DecoderExt] and [encoder::EncoderExt]
 //!
 //!## Usage
 //!
