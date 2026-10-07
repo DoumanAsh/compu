@@ -1,7 +1,5 @@
 //! `zlib-rs` wrapper
 
-extern crate alloc;
-
 use core::{mem, ptr};
 
 use super::zlib_common::ZlibMode;

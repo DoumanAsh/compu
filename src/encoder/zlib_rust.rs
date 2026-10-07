@@ -1,7 +1,5 @@
 //! zlib-rust module
 
-extern crate alloc;
-
 use core::{ptr, mem};
 
 use super::{Encode, EncodeOp, EncodeStatus, Encoder, ZlibOptions, ZlibStrategy};
@@ -120,5 +118,12 @@ impl Encoder for ZlibRust {
     #[inline(always)]
     fn reset(&mut self) -> bool {
         sys::reset(self.as_mut()) == sys::ReturnCode::Ok
+    }
+}
+
+impl Drop for ZlibRust {
+    #[inline(always)]
+    fn drop(&mut self) {
+        let _ = sys::end(self.as_mut());
     }
 }

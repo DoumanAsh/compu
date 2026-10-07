@@ -11,3 +11,16 @@
    fun:*rt*lang_start*
    fun:*rt*lang_start_internal*
 }
+{
+   rust_compiler_leak_test
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:current_or_unnamed
+   ...
+   fun:__rust_std_internal_init_fn
+   ...
+   fun:run_tests*
+   ...
+}
