@@ -10,6 +10,7 @@
 //!- [DecoderExt](decoder/trait.DecoderExt.html)
 //!- [Encoder](encoder/trait.Encoder.html)
 //!- [EncoderExt](encoder/trait.EncoderExt.html)
+//!- [Buffer]
 //!
 //!## Features
 //!
