@@ -26,12 +26,13 @@ This crate requires `alloc` to be available with system allocator set.
 ### Decode
 
 Minimal example of using Decoder.
-Use `Interface` to create instance.
+
+If you unsure about compression used, you can try [detect](https://docs.rs/compu/latest/compu/decoder/enum.Detection.html#method.detect) it
 
 ```rust,no_run
 use compu::{Decoder, DecodeStatus, DecodeError};
 
-fn example(decoder: &mut Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
+fn example(decoder: &mut impl Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
      let mut output = Vec::with_capacity(1024);
      loop {
          let result = decoder.decode_vec(input, &mut output).status?;
@@ -53,12 +54,11 @@ fn example(decoder: &mut Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> 
 ### Encode
 
 Minimal example of using Encoder.
-Use `Interface` to create instance.
 
-```rust
+```rust,no_run
 use compu::{Encoder, EncodeStatus, EncodeOp};
 
-fn example(encoder: &mut Encoder, input: &[u8]) -> Vec<u8> {
+fn example(encoder: &mut impl Encoder, input: &[u8]) -> Vec<u8> {
      let mut output = Vec::with_capacity(1024);
      loop {
          let result = encoder.encode_vec(input, &mut output, EncodeOp::Finish).status;

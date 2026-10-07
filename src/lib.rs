@@ -7,7 +7,9 @@
 //!Please read documentation to see how to use:
 //!
 //!- [Decoder](decoder/trait.Decoder.html)
+//!- [DecoderExt](decoder/trait.DecoderExt.html)
 //!- [Encoder](encoder/trait.Encoder.html)
+//!- [EncoderExt](encoder/trait.EncoderExt.html)
 //!
 //!## Features
 //!
@@ -91,7 +93,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
-#![allow(clippy::style, clippy::derivable_impls)]
+#![allow(clippy::style)]
 
 pub mod decoder;
 #[cfg(any(
@@ -102,9 +104,9 @@ pub mod decoder;
     feature = "zstd"
 ))]
 pub(crate) mod utils;
-pub use decoder::{Decode, DecodeError, DecodeStatus, Decoder, Detection};
+pub use decoder::{Decode, DecodeError, DecodeStatus, Decoder, DecoderExt, Detection};
 pub mod encoder;
-pub use encoder::{Encode, EncodeOp, EncodeStatus, Encoder};
+pub use encoder::{Encode, EncodeOp, EncodeStatus, Encoder, EncoderExt};
 mod buffer;
 pub mod mem;
 pub use buffer::Buffer;
