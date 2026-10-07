@@ -68,7 +68,7 @@ impl Encoder for BrotliRust {
 
     #[inline(always)]
     fn reset(&mut self) -> bool {
-        *self = Self::new(self.options.clone());
+        *self = Self::new(self.options);
         true
     }
 }

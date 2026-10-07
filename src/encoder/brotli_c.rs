@@ -68,12 +68,11 @@ impl Encoder for BrotliC {
                 }
             },
         }
-
     }
 
     #[inline(always)]
     fn reset(&mut self) -> bool {
-        match Self::new(self.options.clone()) {
+        match Self::new(self.options) {
             Some(new_instance) => {
                 *self = new_instance;
                 true

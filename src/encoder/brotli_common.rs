@@ -11,7 +11,7 @@ pub enum BrotliEncoderMode {
 }
 
 ///Brotli options
-#[derive(Default, Clone)]
+#[derive(Default, Copy, Clone)]
 pub struct BrotliOptions {
     pub(crate) inner: [u8; 2],
 }
