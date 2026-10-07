@@ -5,6 +5,17 @@ use core::{mem, slice, fmt, ptr};
 
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
+
+#[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
+fn zlib_decoder_select(mode: ZlibMode) -> Option<Box<dyn Decoder>> {
+    #[cfg(feature = "zlib-rust")]
+    return ZlibRust::new(mode).map(|decoder| Box::new(decoder) as Box<_>);
+    #[cfg(all(feature = "zlib-ng", not(feature = "zlib-rust")))]
+    return ZlibNg::new(mode).map(|decoder| decoder as Box<_>);
+    #[cfg(all(any(feature = "zlib", feature = "zlib-static"), not(feature = "zlib-ng"), not(feature = "zlib-rust")))]
+    return ZlibC::new(mode).map(|decoder| decoder as Box<_>);
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Possible compression archive based on known signatures
@@ -110,6 +121,26 @@ impl Detection {
             detect_zstd!(dword);
 
             Some(Detection::Unknown)
+        }
+    }
+
+    ///Creates decoder based on detection result
+    ///
+    ///Returns `None` if corresponding feature is not enabled or unable to determine codec.
+    ///
+    ///In case of zlib codec priority of selection goes in following order:
+    ///1. [ZlibRust]
+    ///2. [ZlibNg]
+    ///3. [ZlibC]
+    pub fn create_decoder(&self) -> Option<Box<dyn Decoder>> {
+        match self {
+            #[cfg(feature = "zstd")]
+            Self::Zstd => ZstdC::new(ZstdOptions::new()).map(|decoder| Box::new(decoder) as Box<_>),
+            #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
+            Self::Zlib => zlib_decoder_select(ZlibMode::Zlib),
+            #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
+            Self::Gzip => zlib_decoder_select(ZlibMode::Gzip),
+            _ => None,
         }
     }
 }

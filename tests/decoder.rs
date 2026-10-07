@@ -120,6 +120,11 @@ fn should_decode_zstd() {
         test_case(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
+
+        let mut dyn_decoder = decoder::Detection::detect(DATA_ZSTD[idx]).expect("detect zstd").create_decoder().unwrap();
+        test_case(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
     }
 }
 
@@ -153,5 +158,10 @@ fn should_decode_zlib_rust_gzip() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
+
+        let mut dyn_decoder = decoder::Detection::detect(DATA_GZIP[idx]).expect("detect gzip").create_decoder().unwrap();
+        test_case(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
     }
 }
