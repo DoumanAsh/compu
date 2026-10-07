@@ -2,11 +2,105 @@
 
 use zstd_sys as sys;
 
-use core::ptr;
+use core::{mem, ptr};
 
-use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface};
+use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface, DecoderInterface};
 use crate::mem::compu_free_with_state;
 use crate::mem::compu_malloc_with_state;
+
+///Decoder backed by [zstd](https://github.com/gyscos/zstd-rs)
+pub struct ZstdC {
+    inner: ptr::NonNull<sys::ZSTD_DCtx>
+}
+
+impl ZstdC {
+    #[inline]
+    ///Creates new instance unless underlying C library is unable to create instance
+    pub fn new(options: ZstdOptions) -> Option<Self> {
+       let allocator = sys::ZSTD_customMem {
+            customAlloc: Some(compu_malloc_with_state),
+            customFree: Some(compu_free_with_state),
+            opaque: ptr::null_mut(),
+        };
+        let ctx = unsafe {
+            sys::ZSTD_createDStream_advanced(allocator)
+        };
+        match ptr::NonNull::new(ctx).and_then(|ctx| options.apply(ctx)) {
+            Some(inner) => Some(Self {
+                inner
+            }),
+            None => None,
+        }
+    }
+}
+
+impl DecoderInterface for ZstdC {
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        let mut input = sys::ZSTD_inBuffer_s {
+            src: input.as_ptr() as _,
+            size: input.len(),
+            pos: 0,
+        };
+        let mut output = sys::ZSTD_outBuffer_s {
+            dst: output.as_mut_ptr() as _,
+            size: output.len(),
+            pos: 0,
+        };
+        let result = unsafe {
+            sys::ZSTD_decompressStream(self.inner.as_ptr(), &mut output, &mut input)
+        };
+
+        Decode {
+            input_remain: input.size - input.pos,
+            output_remain: output.size - output.pos,
+            status: match result {
+                0 => Ok(DecodeStatus::Finished),
+                //Unfortunately error handling in zstd is shit
+                //non-zero return value means that we're not done or it is error.
+                //ZSTD_decompressStream() always flushes to maximum, so if there is not enough space,
+                //we should check it first, otherwise assume we need more input.
+                //Even though they have error code 70 to indicate output not having enough space
+                //they do not necessary use it
+                size => {
+                    if output.pos == output.size {
+                        Ok(DecodeStatus::NeedOutput)
+                    } else if unsafe {sys::ZSTD_isError(size) } == 0 {
+                        //Not error, means it was able to flush out everything it had
+                        Ok(DecodeStatus::NeedInput)
+                    } else {
+                        Err(DecodeError(size as _))
+                    }
+                }
+            },
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        let result = unsafe {
+            sys::ZSTD_DCtx_reset(self.inner.as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
+        };
+        result == 0
+    }
+
+    #[inline(always)]
+    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
+        let result = unsafe {
+            sys::ZSTD_getErrorName(code.0 as _)
+        };
+        crate::utils::convert_c_str(result)
+    }
+}
+
+impl Drop for ZstdC {
+    #[inline(always)]
+    fn drop(&mut self) {
+        let result = unsafe {
+            sys::ZSTD_freeDStream(self.inner.as_ptr())
+        };
+        debug_assert_eq!(result, 0);
+    }
+}
 
 static ZSTD: Interface = Interface {
     drop_fn,
@@ -95,15 +189,15 @@ impl Interface {
 }
 
 #[inline]
-unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usize, output: *mut u8, output_remain: usize) -> Decode {
+unsafe fn decode_fn(state: ptr::NonNull<u8>, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
     let mut input = sys::ZSTD_inBuffer_s {
-        src: input as _,
-        size: input_remain,
+        src: input.as_ptr() as _,
+        size: input.len(),
         pos: 0,
     };
     let mut output = sys::ZSTD_outBuffer_s {
-        dst: output as _,
-        size: output_remain,
+        dst: output.as_mut_ptr() as _,
+        size: output.len(),
         pos: 0,
     };
     let result = unsafe {

@@ -1,10 +1,13 @@
 //! Decoder
 extern crate alloc;
 
-use core::{mem, ptr};
+use core::{mem, ptr, slice};
 
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
+
+///Decoding function signature to be used in [Interface]
+pub type DecodeFn = unsafe fn(ptr::NonNull<u8>, &[u8], &mut [mem::MaybeUninit<u8>]) -> Decode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 ///Possible compression archive based on known signatures
@@ -157,8 +160,208 @@ pub struct Decode {
 }
 
 ///Decoder interface
+pub trait DecoderInterface {
+    ///Decodes `input` into uninit `output`.
+    ///
+    ///[Decode] will contain number of bytes written into `output`.
+    ///This number always indicates number of bytes written hence which can be assumed initialized.
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode;
+
+    #[inline(always)]
+    ///Decodes `input` into `output`.
+    ///
+    ///Defaults by delegating to [DecoderInterface::decode_uninit]
+    fn decode(&mut self, input: &[u8], output: &mut [u8]) -> Decode {
+        unsafe {
+            self.decode_uninit(input, slice::from_raw_parts_mut(output.as_mut_ptr() as *mut _, output.len()))
+        }
+    }
+
+    #[inline(always)]
+    ///Decodes `input` into spare space in `output`.
+    ///
+    ///Function require user to alloc spare capacity himself.
+    ///
+    ///[Decode::output_remain] will be relative to spare capacity length.
+    ///
+    ///Defaults by delegating to [DecoderInterface::decode_uninit]
+    fn decode_vec(&mut self, input: &[u8], output: &mut Vec<u8>) -> Decode {
+        let spare_capacity = output.spare_capacity_mut();
+        let spare_capacity_len = spare_capacity.len();
+        let result = self.decode_uninit(input, spare_capacity);
+
+        if result.status.is_ok() {
+            let new_len = output.len() + spare_capacity_len - result.output_remain;
+            unsafe {
+                output.set_len(new_len);
+            }
+        }
+        result
+    }
+
+    #[inline(always)]
+    ///Decodes `input` into `output` Vec, performing allocation when necessary
+    ///
+    ///This function will continue decoding as long as input requires more input.
+    ///
+    ///## Allocation
+    ///
+    ///Strategy depends on input size.
+    ///- Less than 1024:
+    ///   - Allocates `input.len()`
+    ///   - Re-alloc size `input.len() / 3`
+    ///- From 1024 to 65536:
+    ///   - Allocates `input.len() + input.len() / 3`
+    ///   - Re-alloc size `1024`
+    ///- From 65536:
+    ///   - Allocates `input.len() * 2`
+    ///   - Re-alloc size `8 * 1024`
+    ///
+    ///Note that the best strategy is always to re-use buffer
+    ///
+    ///## Result
+    ///
+    ///- [Decode::output_remain] will be relatieve to spare capacity of the `output`.
+    ///
+    ///Defaults by delegating to [DecoderInterface::decode_vec]
+    fn decode_vec_full(&mut self, mut input: &[u8], output: &mut Vec<u8>) -> Result<Decode, TryReserveError> {
+        const RESERVE_DEFAULT: usize = 1024;
+        let input_len = input.len();
+        let reserve_size = if input_len < RESERVE_DEFAULT {
+            output.try_reserve_exact(input_len)?;
+            input_len / 3
+        } else if input_len < (RESERVE_DEFAULT * 16) {
+            output.try_reserve_exact(input_len + input_len / 3)?;
+            RESERVE_DEFAULT
+        } else {
+            output.try_reserve_exact(input.len() * 2)?;
+            RESERVE_DEFAULT * 8
+        };
+
+        loop {
+            let result = self.decode_vec(input, output);
+            match result.status {
+                Ok(DecodeStatus::NeedOutput) => {
+                    input = &input[input.len() - result.input_remain..];
+                    output.try_reserve_exact(reserve_size)?;
+                    continue;
+                }
+                _ => break Ok(result),
+            }
+        }
+    }
+
+    ///Resets `Decoder` state to initial.
+    ///
+    ///Returns `true` if successfully reset, otherwise `false`
+    fn reset(&mut self) -> bool;
+    ///Returns descriptive text for error.
+    fn describe_error(&self, code: DecodeError) -> Option<&'static str>;
+}
+
+///Extensions to [DecoderInterface]
+pub trait DecoderExt: DecoderInterface {
+    #[cfg(feature = "bytes")]
+    ///Decodes `input` into `output` buffer, iterating through all spare capacity chunks if necessary
+    ///
+    ///Requires `bytes` feature
+    ///
+    ///[Decode::output_remain] will be relative to spare capacity length.
+    ///
+    ///Defaults by delegating to [DecoderInterface::decode_uninit]
+    fn decode_buf(&mut self, mut input: &[u8], output: &mut impl bytes::BufMut) -> Decode {
+        let mut result = Decode {
+            input_remain: input.len(),
+            output_remain: output.remaining_mut(),
+            status: Ok(DecodeStatus::NeedOutput),
+        };
+
+        loop {
+            let spare_capacity = output.chunk_mut();
+            let spare_capacity_len = spare_capacity.len();
+
+            let (advanced_len, decode) = unsafe {
+                let decode = self.decode_uninit(input, spare_capacity.as_uninit_slice_mut());
+                debug_assert!(spare_capacity_len > decode.output_remain);
+                let advanced_len = spare_capacity_len.saturating_sub(decode.output_remain);
+                output.advance_mut(advanced_len);
+                (advanced_len, decode)
+            };
+            input = &input[result.input_remain - decode.input_remain..];
+            result.input_remain = decode.input_remain;
+            result.output_remain = result.output_remain.saturating_sub(advanced_len);
+            result.status = decode.status;
+
+            match result.status {
+                Ok(DecodeStatus::Finished | DecodeStatus::NeedInput) => break result,
+                Ok(DecodeStatus::NeedOutput) => {
+                    if result.output_remain == 0 {
+                        break result;
+                    }
+                }
+                Err(_) => break result,
+            }
+        }
+    }
+}
+
+impl<T: DecoderInterface> DecoderExt for T {
+}
+
+impl DecoderInterface for alloc::boxed::Box<dyn DecoderInterface> {
+    #[inline(always)]
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        (**self).decode_uninit(input, output)
+    }
+
+    #[inline(always)]
+    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
+        (**self).describe_error(code)
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        (**self).reset()
+    }
+}
+
+impl DecoderInterface for &mut dyn DecoderInterface {
+    #[inline(always)]
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        (**self).decode_uninit(input, output)
+    }
+
+    #[inline(always)]
+    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
+        (**self).describe_error(code)
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        (**self).reset()
+    }
+}
+
+impl<T: DecoderInterface> DecoderInterface for alloc::boxed::Box<T> {
+    #[inline(always)]
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        (**self).decode_uninit(input, output)
+    }
+
+    #[inline(always)]
+    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
+        (**self).describe_error(code)
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        (**self).reset()
+    }
+}
+
+///Decoder interface
 pub struct Interface {
-    decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode,
+    decode_fn: DecodeFn,
     //returns new/updated instance, MUST be replaced
     reset_fn: fn(ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>,
     drop_fn: fn(ptr::NonNull<u8>),
@@ -171,7 +374,7 @@ impl Interface {
     ///First argument of every function is state as pointer.
     ///
     ///It is user responsibility to pass correct function pointers
-    pub const fn new(decode_fn: unsafe fn(ptr::NonNull<u8>, *const u8, usize, *mut u8, usize) -> Decode, reset_fn: fn(ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>, drop_fn: fn(ptr::NonNull<u8>), describe_error_fn: fn(i32) -> Option<&'static str>) -> Self {
+    pub const fn new(decode_fn: DecodeFn, reset_fn: fn(ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>>, drop_fn: fn(ptr::NonNull<u8>), describe_error_fn: fn(i32) -> Option<&'static str>) -> Self {
         Self {
             decode_fn,
             reset_fn,
@@ -277,40 +480,21 @@ const _: () = {
 
 impl Decoder {
     #[inline(always)]
-    ///Raw decoding function, with no checks.
-    ///
-    ///Intended to be used as building block of higher level interfaces
-    ///
-    ///Arguments
-    ///
-    ///- `input` - Pointer to start of input to process. MUST NOT be null.
-    ///- `input_len` - Size of data to process in `input`
-    ///- `ouput` - Pointer to start of buffer where to write result. MUST NOT be null
-    ///- `output_len` - Size of buffer pointed by `output`
-    pub unsafe fn raw_decode(&mut self, input: *const u8, input_len: usize, output: *mut u8, output_len: usize) -> Decode {
-        (self.interface.decode_fn)(self.instance, input, input_len, output, output_len)
-    }
-
-    #[inline(always)]
     ///Decodes `input` into uninit `output`.
     ///
     ///`Decode` will contain number of bytes written into `output`. This number always indicates
     ///number of bytes written hence which can be assumed initialized.
     pub fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-        let input_len = input.len();
-        let output_len = output.len();
         unsafe {
-            self.raw_decode(input.as_ptr(), input_len, output.as_mut_ptr() as _, output_len)
+            (self.interface.decode_fn)(self.instance, input, output)
         }
     }
 
     #[inline(always)]
     ///Decodes `input` into `output`.
     pub fn decode(&mut self, input: &[u8], output: &mut [u8]) -> Decode {
-        let input_len = input.len();
-        let output_len = output.len();
         unsafe {
-            self.raw_decode(input.as_ptr(), input_len, output.as_mut_ptr() as _, output_len)
+            self.decode_uninit(input, slice::from_raw_parts_mut(output.as_mut_ptr() as *mut _, output.len()))
         }
     }
 
@@ -457,15 +641,15 @@ impl Drop for Decoder {
 //ZLIB macro has to be defined before declaring modules
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 macro_rules! internal_zlib_impl_decode {
-    ($state:ident, $input:ident, $input_len:ident, $output:ident, $output_len:ident) => {{
+    ($state:ident, $input:ident, $output:ident) => {{
         use $crate::decoder::DecodeStatus;
 
         let state = unsafe { &mut *($state.as_ptr() as *mut State) };
-        state.inner.avail_out = $output_len as _;
-        state.inner.next_out = $output;
+        state.inner.avail_out = $output.len() as _;
+        state.inner.next_out = $output.as_mut_ptr() as *mut u8;
 
-        state.inner.avail_in = $input_len as _;
-        state.inner.next_in = $input as *mut _;
+        state.inner.avail_in = $input.len() as _;
+        state.inner.next_in = $input.as_ptr() as *mut _;
 
         let result = sys::inflate(state.as_mut(), DEFAULT_INFLATE);
 
@@ -491,18 +675,28 @@ mod zlib_common;
 pub use zlib_common::ZlibMode;
 #[cfg(feature = "brotli-rust")]
 mod brotli;
+#[cfg(feature = "brotli-rust")]
+pub use brotli::BrotliRust;
 #[cfg(feature = "brotli-c")]
 mod brotli_c;
+#[cfg(feature = "brotli-c")]
+pub use brotli_c::BrotliC;
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 mod zlib;
+#[cfg(any(feature = "zlib", feature = "zlib-static"))]
+pub use zlib::ZlibC;
 #[cfg(feature = "zlib-ng")]
 mod zlib_ng;
+#[cfg(feature = "zlib-ng")]
+pub use zlib_ng::ZlibNg;
 #[cfg(feature = "zlib-rust")]
 mod zlib_rust;
+#[cfg(feature = "zlib-rust")]
+pub use zlib_rust::ZlibRust;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]
-pub use zstd::ZstdOptions;
+pub use zstd::{ZstdC, ZstdOptions};
 
 impl<const N: usize> crate::Buffer<N> {
     ///Decodes `input` using `decoder` returning number of bytes consumed in `input`
@@ -514,7 +708,7 @@ impl<const N: usize> crate::Buffer<N> {
     ///    - In case of `NeedOutput`, you should consume internal buffer.
     ///
     ///In case of error, internal buffer size will not change
-    pub fn decode(&mut self, decoder: &mut Decoder, input: &[u8]) -> Result<(usize, DecodeStatus), DecodeError> {
+    pub fn decode(&mut self, decoder: &mut impl DecoderInterface, input: &[u8]) -> Result<(usize, DecodeStatus), DecodeError> {
         let spare_capacity = self.spare_capacity_mut();
         let spare_capacity_len = spare_capacity.len();
 
