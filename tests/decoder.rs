@@ -18,7 +18,7 @@ const DATA_ZSTD: [&[u8]; 2] = [
     include_bytes!("data/alice29.txt.compressed.zstd"),
 ];
 
-fn test_case(idx: usize, decoder: &mut impl decoder::DecoderInterface, data: &[u8], compressed: &[u8]) {
+fn test_case(idx: usize, decoder: &mut impl decoder::Decoder, data: &[u8], compressed: &[u8]) {
     println!("{idx}: DATA.len()={} || COMPRESSED.len()={}", data.len(), compressed.len());
 
     //Full
@@ -77,7 +77,7 @@ fn test_case(idx: usize, decoder: &mut impl decoder::DecoderInterface, data: &[u
 }
 
 #[cfg(feature = "bytes")]
-fn test_case_bytes(idx: usize, decoder: &mut impl decoder::DecoderInterface, data: &[u8], compressed: &[u8]) {
+fn test_case_bytes(idx: usize, decoder: &mut impl decoder::Decoder, data: &[u8], compressed: &[u8]) {
     use bytes::BufMut;
     println!("bytes({idx}): DATA.len()={} || COMPRESSED.len()={}", data.len(), compressed.len());
 

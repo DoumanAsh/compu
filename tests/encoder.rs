@@ -1,13 +1,13 @@
 use compu::{decoder, encoder, Buffer};
-use decoder::{DecodeStatus, Detection, DecoderInterface, DecoderExt};
-use encoder::{EncodeOp, EncodeStatus, EncodeInterface, EncoderExt};
+use decoder::{DecodeStatus, Detection, Decoder, DecoderExt};
+use encoder::{EncodeOp, EncodeStatus, Encoder, EncoderExt};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
     include_bytes!("data/alice29.txt"),
 ];
 
-fn test_case(idx: usize, encoder: &mut impl EncodeInterface, decoder: &mut impl DecoderInterface, data: &[u8], expected_detection: Detection) {
+fn test_case(idx: usize, encoder: &mut impl Encoder, decoder: &mut impl Decoder, data: &[u8], expected_detection: Detection) {
     println!("{idx}: DATA.len()={}", data.len());
 
     let mut compressed = vec![0; data.len()];
@@ -78,7 +78,7 @@ fn test_case(idx: usize, encoder: &mut impl EncodeInterface, decoder: &mut impl 
 }
 
 #[cfg(feature = "bytes")]
-fn test_case_bytes(idx: usize, encoder: &mut impl EncodeInterface, mut decoder: &mut dyn DecoderInterface, data: &[u8], expected_detection: Detection) {
+fn test_case_bytes(idx: usize, encoder: &mut impl Encoder, mut decoder: &mut dyn Decoder, data: &[u8], expected_detection: Detection) {
     use bytes::BufMut;
     println!("{idx}: DATA.len()={}", data.len());
 
@@ -112,7 +112,7 @@ fn test_case_bytes(idx: usize, encoder: &mut impl EncodeInterface, mut decoder: 
     decoder.reset();
 }
 
-fn test_case_empty_final(idx: usize, encoder: &mut impl EncodeInterface, decoder: &mut dyn DecoderInterface, data: &[u8]) {
+fn test_case_empty_final(idx: usize, encoder: &mut impl Encoder, decoder: &mut dyn Decoder, data: &[u8]) {
     println!("{idx}: DATA.len()={}", data.len());
 
     let mut compressed = vec![0; data.len()];

@@ -4,7 +4,7 @@ use zstd_sys as sys;
 
 use core::{mem, ptr};
 
-use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface, DecoderInterface};
+use super::{Decode, DecodeError, DecodeStatus, Decoder};
 use crate::mem::compu_free_with_state;
 use crate::mem::compu_malloc_with_state;
 
@@ -35,7 +35,7 @@ impl ZstdC {
     }
 }
 
-impl DecoderInterface for ZstdC {
+impl Decoder for ZstdC {
     fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
         let mut input = sys::ZSTD_inBuffer_s {
             src: input.as_ptr() as _,
@@ -103,13 +103,6 @@ impl Drop for ZstdC {
     }
 }
 
-static ZSTD: Interface = Interface {
-    drop_fn,
-    reset_fn,
-    decode_fn,
-    describe_error_fn,
-};
-
 #[derive(Copy, Clone)]
 ///ZSTD options.
 ///
@@ -166,94 +159,4 @@ impl Default for ZstdOptions {
     fn default() -> Self {
         Self::new()
     }
-}
-
-impl Interface {
-    #[inline]
-    ///Creates decoder with `zstd` interface
-    ///
-    ///Returns `None` if unable to initialize it (likely due to lack of memory)
-    pub fn zstd(opts: ZstdOptions) -> Option<Decoder> {
-        let allocator = sys::ZSTD_customMem {
-            customAlloc: Some(compu_malloc_with_state),
-            customFree: Some(compu_free_with_state),
-            opaque: ptr::null_mut(),
-        };
-        let ctx = unsafe {
-            sys::ZSTD_createDStream_advanced(allocator)
-        };
-        match ptr::NonNull::new(ctx).and_then(|ctx| opts.apply(ctx)) {
-            Some(ctx) => Some(ZSTD.inner_decoder(ctx.cast())),
-            None => None,
-        }
-    }
-}
-
-#[inline]
-unsafe fn decode_fn(state: ptr::NonNull<u8>, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-    let mut input = sys::ZSTD_inBuffer_s {
-        src: input.as_ptr() as _,
-        size: input.len(),
-        pos: 0,
-    };
-    let mut output = sys::ZSTD_outBuffer_s {
-        dst: output.as_mut_ptr() as _,
-        size: output.len(),
-        pos: 0,
-    };
-    let result = unsafe {
-        sys::ZSTD_decompressStream(state.cast().as_ptr(), &mut output, &mut input)
-    };
-
-    Decode {
-        input_remain: input.size - input.pos,
-        output_remain: output.size - output.pos,
-        status: match result {
-            0 => Ok(DecodeStatus::Finished),
-            //Unfortunately error handling in zstd is shit
-            //non-zero return value means that we're not done or it is error.
-            //ZSTD_decompressStream() always flushes to maximum, so if there is not enough space,
-            //we should check it first, otherwise assume we need more input.
-            //Even though they have error code 70 to indicate output not having enough space
-            //they do not necessary use it
-            size => {
-                if output.pos == output.size {
-                    Ok(DecodeStatus::NeedOutput)
-                } else if sys::ZSTD_isError(size) == 0 {
-                    //Not error, means it was able to flush out everything it had
-                    Ok(DecodeStatus::NeedInput)
-                } else {
-                    Err(DecodeError(size as _))
-                }
-            }
-        },
-    }
-}
-
-#[inline]
-fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
-    let result = unsafe {
-        sys::ZSTD_DCtx_reset(state.cast().as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
-    };
-    if result == 0 {
-        Some(state)
-    } else {
-        None
-    }
-}
-
-#[inline]
-fn drop_fn(state: ptr::NonNull<u8>) {
-    let result = unsafe {
-        sys::ZSTD_freeDStream(state.cast().as_ptr())
-    };
-    debug_assert_eq!(result, 0);
-}
-
-#[inline]
-fn describe_error_fn(code: i32) -> Option<&'static str> {
-    let result = unsafe {
-        sys::ZSTD_getErrorName(code as _)
-    };
-    crate::utils::convert_c_str(result)
 }

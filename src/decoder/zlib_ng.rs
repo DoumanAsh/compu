@@ -9,7 +9,7 @@ use core::ffi::c_int;
 use core::{mem, ptr};
 
 use super::zlib_common::ZlibMode;
-use super::{Decode, Decoder, Interface, DecoderInterface, DecodeStatus, DecodeError};
+use super::{Decode, Decoder, DecodeStatus, DecodeError};
 use crate::mem::{compu_alloc, compu_free_with_state};
 
 const DEFAULT_INFLATE: i32 = 0;
@@ -65,7 +65,7 @@ impl ZlibNg {
     }
 }
 
-impl DecoderInterface for ZlibNg {
+impl Decoder for ZlibNg {
     fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
         self.inner.avail_out = output.len() as _;
         self.inner.next_out = output.as_mut_ptr() as *mut u8;
@@ -116,107 +116,4 @@ impl Drop for ZlibNg {
             sys::inflateEnd(&mut self.inner);
         }
     }
-}
-
-static ZLIB_NG: Interface = Interface {
-    drop_fn,
-    reset_fn,
-    decode_fn,
-    describe_error_fn,
-};
-
-#[repr(transparent)]
-struct State {
-    inner: sys::z_stream,
-}
-
-impl State {
-    #[inline(always)]
-    fn as_mut(&mut self) -> &mut sys::z_stream {
-        &mut self.inner
-    }
-
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        unsafe {
-            sys::inflateReset(&mut self.inner) == sys::Z_OK
-        }
-    }
-}
-
-impl Drop for State {
-    #[inline(always)]
-    fn drop(&mut self) {
-        unsafe {
-            sys::inflateEnd(&mut self.inner);
-        }
-    }
-}
-
-impl Interface {
-    ///Creates decoder with `zlib-ng` interface
-    ///
-    ///Returns `None` if unable to initialize it (likely due to lack of memory)
-    pub fn zlib_ng(mode: ZlibMode) -> Option<Decoder> {
-        let mut instance = Box::new(State {
-            inner: sys::z_stream {
-                next_in: ptr::null_mut(),
-                avail_in: 0,
-                total_in: 0,
-                next_out: ptr::null_mut(),
-                avail_out: 0,
-                total_out: 0,
-                msg: ptr::null_mut(),
-                state: ptr::null_mut(),
-                zalloc: compu_alloc,
-                zfree: compu_free_with_state,
-                opaque: ptr::null_mut(),
-                data_type: 0,
-                adler: 0,
-                reserved: 0,
-            },
-        });
-        let result = unsafe {
-            sys::inflateInit2_(&mut instance.inner, mode.max_bits(), sys::zlibVersion(), mem::size_of::<sys::z_stream>() as _)
-        };
-
-        if result == 0 {
-            let instance = ptr::NonNull::from(Box::leak(instance)).cast();
-            Some(ZLIB_NG.inner_decoder(instance))
-        } else {
-            None
-        }
-    }
-}
-
-#[inline]
-unsafe fn decode_fn(state: ptr::NonNull<u8>, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-    internal_zlib_impl_decode!(state, input, output)
-}
-
-#[inline]
-fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
-    let result = unsafe {
-        (*(state.as_ptr() as *mut State)).reset()
-    };
-    if result {
-        Some(state)
-    } else {
-        None
-    }
-}
-
-#[inline]
-fn drop_fn(data: ptr::NonNull<u8>) {
-    unsafe {
-        drop(Box::from_raw(data.as_ptr() as *mut State));
-    }
-}
-
-#[inline]
-fn describe_error_fn(code: i32) -> Option<&'static str> {
-    let result = unsafe {
-        zError(code)
-    };
-    crate::utils::convert_c_str(result)
 }

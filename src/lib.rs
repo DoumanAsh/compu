@@ -6,8 +6,8 @@
 //!
 //!Please read documentation to see how to use:
 //!
-//!- [Decoder](decoder/struct.Decoder.html)
-//!- [Encoder](encoder/struct.Encoder.html)
+//!- [Decoder](decoder/trait.Decoder.html)
+//!- [Encoder](encoder/trait.Encoder.html)
 //!
 //!## Features
 //!
@@ -28,14 +28,13 @@
 //!### Decode
 //!
 //!Minimal example of using Decoder.
-//!Use [Interface](decoder/struct.Interface.html) to create instance.
 //!
 //!If you unsure about compression used, you can try [detect](decoder/enum.Detection.html#method.detect) it
 //!
 //!```rust,no_run
 //!use compu::{Decoder, DecodeStatus, DecodeError};
 //!
-//!fn example(decoder: &mut Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
+//!fn example(decoder: &mut impl Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
 //!     let mut output = Vec::with_capacity(1024);
 //!     loop {
 //!         let result = decoder.decode_vec(input, &mut output).status?;
@@ -57,12 +56,11 @@
 //!### Encode
 //!
 //!Minimal example of using Encoder.
-//!Use [Interface](encoder/struct.Interface.html) to create instance.
 //!
 //!```rust,no_run
 //!use compu::{Encoder, EncodeStatus, EncodeOp};
 //!
-//!fn example(encoder: &mut Encoder, input: &[u8]) -> Vec<u8> {
+//!fn example(encoder: &mut impl Encoder, input: &[u8]) -> Vec<u8> {
 //!     let mut output = Vec::with_capacity(1024);
 //!     loop {
 //!         let result = encoder.encode_vec(input, &mut output, EncodeOp::Finish).status;
