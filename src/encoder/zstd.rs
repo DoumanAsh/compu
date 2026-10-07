@@ -4,9 +4,101 @@ use zstd_sys as sys;
 
 use core::ptr;
 
-use super::{Encode, EncodeOp, EncodeStatus, Encoder, Interface};
+use super::{Encode, EncodeOp, EncodeStatus, Encoder, Interface, EncodeInterface};
 use crate::mem::compu_free_with_state;
 use crate::mem::compu_malloc_with_state;
+
+#[repr(transparent)]
+///Encoder backed by [zstd](https://github.com/gyscos/zstd-rs)
+pub struct ZstdC {
+    inner: ptr::NonNull<sys::ZSTD_CCtx>
+}
+
+impl ZstdC {
+    #[inline]
+    ///Creates new instance unless underlying C library is unable to create instance
+    pub fn new(opts: ZstdOptions) -> Option<Self> {
+        let allocator = sys::ZSTD_customMem {
+            customAlloc: Some(compu_malloc_with_state),
+            customFree: Some(compu_free_with_state),
+            opaque: ptr::null_mut(),
+        };
+        let ctx = unsafe {
+            sys::ZSTD_createCStream_advanced(allocator)
+        };
+        match ptr::NonNull::new(ctx).and_then(|ctx| opts.apply(ctx)) {
+            Some(inner) => Some(ZstdC {
+                inner
+            }),
+            None => None,
+        }
+    }
+}
+
+impl EncodeInterface for ZstdC {
+    #[inline]
+    fn encode_uninit(&mut self, input: &[u8], output: &mut [core::mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
+        let mut input = sys::ZSTD_inBuffer_s {
+            src: input.as_ptr() as _,
+            size: input.len(),
+            pos: 0,
+        };
+        let mut output = sys::ZSTD_outBuffer_s {
+            dst: output.as_mut_ptr() as _,
+            size: output.len(),
+            pos: 0,
+        };
+
+        let result = unsafe {
+            sys::ZSTD_compressStream2(self.inner.as_ptr(), &mut output, &mut input, op.into_zstd())
+        };
+        Encode {
+            input_remain: input.size - input.pos,
+            output_remain: output.size - output.pos,
+            status: match result {
+                //0 always mean there is nothing else to do.
+                //so if user requested finish, then frame is done
+                0 => match op {
+                    EncodeOp::Finish => EncodeStatus::Finished,
+                    _ => EncodeStatus::Continue,
+                },
+                //Made some progress, but not completely
+                //Try to guess what it means, especially problematic for `EncodeOp::Process` as zstd is
+                //allowed not to consume output as whole
+                size if unsafe { sys::ZSTD_isError(size) } == 0 => {
+                    if output.pos == output.size {
+                        EncodeStatus::NeedOutput
+                    } else {
+                        EncodeStatus::Continue
+                    }
+                }
+                size => match unsafe { ZSTD_getErrorCode(size) } {
+                    //https://github.com/facebook/zstd/blob/dev/lib/zstd_errors.h#L64
+                    70 | 80 => EncodeStatus::NeedOutput,
+                    _ => EncodeStatus::Error,
+                },
+            },
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        let result = unsafe {
+            sys::ZSTD_CCtx_reset(self.inner.as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
+        };
+        result == 0
+    }
+}
+
+impl Drop for ZstdC {
+    #[inline(always)]
+    fn drop(&mut self) {
+        let result = unsafe {
+            sys::ZSTD_freeCStream(self.inner.as_ptr())
+        };
+        debug_assert_eq!(result, 0);
+    }
+}
 
 static ZSTD: Interface = Interface {
     drop_fn,

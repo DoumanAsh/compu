@@ -8,6 +8,7 @@ use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface, DecoderInterf
 use crate::mem::compu_free_with_state;
 use crate::mem::compu_malloc_with_state;
 
+#[repr(transparent)]
 ///Decoder backed by [zstd](https://github.com/gyscos/zstd-rs)
 pub struct ZstdC {
     inner: ptr::NonNull<sys::ZSTD_DCtx>

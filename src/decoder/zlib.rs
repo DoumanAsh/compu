@@ -18,6 +18,7 @@ extern "C" {
     pub fn zError(code: c_int) -> *const i8;
 }
 
+#[repr(transparent)]
 ///Decoder backed by [libz](https://github.com/rust-lang/libz-sys)
 pub struct ZlibC {
     inner: sys::z_stream

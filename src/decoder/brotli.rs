@@ -5,6 +5,7 @@ use crate::mem::brotli_rust::BrotliAllocator;
 use crate::mem::Box;
 pub(crate) type Instance = brotli::BrotliState<BrotliAllocator, BrotliAllocator, BrotliAllocator>;
 
+#[repr(transparent)]
 ///Decoder backed by [brotli](https://github.com/dropbox/rust-brotli)
 pub struct BrotliRust {
     inner: Instance

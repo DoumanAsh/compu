@@ -21,6 +21,7 @@ mod sys {
 
 const DEFAULT_INFLATE: sys::InflateFlush = sys::InflateFlush::NoFlush;
 
+#[repr(transparent)]
 ///Decoder backed by [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs)
 pub struct ZlibRust {
     inner: sys::z_stream

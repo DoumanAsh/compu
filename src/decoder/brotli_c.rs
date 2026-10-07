@@ -7,6 +7,7 @@ use core::{ptr, mem};
 use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface, DecoderInterface};
 use crate::mem::{compu_free_with_state, compu_malloc_with_state};
 
+#[repr(transparent)]
 ///Decoder backed by [brotli](https://github.com/DoumanAsh/compu-brotli-sys)
 pub struct BrotliC {
     inner: ptr::NonNull<sys::BrotliDecoderState>
