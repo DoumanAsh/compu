@@ -1,7 +1,7 @@
 //! Decoder
 extern crate alloc;
 
-use core::{mem, slice};
+use core::{mem, slice, fmt, ptr};
 
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
@@ -114,23 +114,34 @@ impl Detection {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(transparent)]
+#[derive(Debug, Clone, Copy, Eq)]
 ///Decoding error
-pub struct DecodeError(i32);
+pub struct DecodeError {
+    code: i32,
+    describe_error_fn: fn(i32) -> Option<&'static str>
+}
 
 impl DecodeError {
-    ///Creates error which means no error.
-    ///
-    ///Specifically its code is 0
-    pub const fn no_error() -> Self {
-        Self(0)
-    }
-
     #[inline(always)]
     ///Returns raw integer
     pub const fn as_raw(&self) -> i32 {
-        self.0
+        self.code
+    }
+}
+
+impl PartialEq for DecodeError {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code && ptr::eq(self.describe_error_fn as *const (), other.describe_error_fn as *const ())
+    }
+}
+
+impl fmt::Display for DecodeError {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { code, describe_error_fn } = self;
+        let error = (describe_error_fn)(*code).unwrap_or("unknown error");
+        fmt.write_fmt(format_args!("DecodeError({code}): {error}"))
     }
 }
 
@@ -314,8 +325,6 @@ pub trait Decoder {
     ///
     ///Returns `true` if successfully reset, otherwise `false`
     fn reset(&mut self) -> bool;
-    ///Returns descriptive text for error.
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str>;
 }
 
 ///Extensions to [Decoder]
@@ -374,11 +383,6 @@ impl Decoder for alloc::boxed::Box<dyn Decoder> {
     }
 
     #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        (**self).describe_error(code)
-    }
-
-    #[inline(always)]
     fn reset(&mut self) -> bool {
         (**self).reset()
     }
@@ -391,11 +395,6 @@ impl Decoder for &mut dyn Decoder {
     }
 
     #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        (**self).describe_error(code)
-    }
-
-    #[inline(always)]
     fn reset(&mut self) -> bool {
         (**self).reset()
     }
@@ -405,11 +404,6 @@ impl<T: Decoder> Decoder for alloc::boxed::Box<T> {
     #[inline(always)]
     fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
         (**self).decode_uninit(input, output)
-    }
-
-    #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        (**self).describe_error(code)
     }
 
     #[inline(always)]

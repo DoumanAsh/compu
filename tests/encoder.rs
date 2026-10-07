@@ -69,7 +69,7 @@ fn test_case(idx: usize, encoder: &mut impl Encoder, decoder: &mut impl Decoder,
     let result = decoder.decode_vec_full(&compressed_full, decompressed_full.as_mut()).expect("success");
     match result.status {
         Ok(status) => assert_eq!(status, DecodeStatus::Finished),
-        Err(error) => panic!("Unexpected error: {:?}", decoder.describe_error(error)),
+        Err(error) => panic!("Unexpected error: {}", error),
     }
     assert_eq!(data, decompressed_full);
 

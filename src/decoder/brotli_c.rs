@@ -7,6 +7,13 @@ use core::{ptr, mem};
 use super::{Decode, DecodeError, DecodeStatus, Decoder};
 use crate::mem::{compu_free_with_state, compu_malloc_with_state};
 
+fn describe_error_fn(code: i32) -> Option<&'static str> {
+    let result = unsafe {
+        sys::BrotliDecoderErrorString(code as _)
+    };
+    crate::utils::convert_c_str(result)
+}
+
 #[repr(transparent)]
 ///Decoder backed by [brotli](https://github.com/DoumanAsh/compu-brotli-sys)
 pub struct BrotliC {
@@ -46,12 +53,18 @@ impl Decoder for BrotliC {
                     let code = unsafe {
                         sys::BrotliDecoderGetErrorCode(self.inner.as_ptr())
                     };
-                    Err(DecodeError(code as _))
+                    Err(DecodeError {
+                        code: code as _,
+                        describe_error_fn,
+                    })
                 }
                 sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_SUCCESS => Ok(DecodeStatus::Finished),
                 sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT => Ok(DecodeStatus::NeedInput),
                 sys::BrotliDecoderResult_BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT => Ok(DecodeStatus::NeedOutput),
-                other => Err(DecodeError(other)),
+                code => Err(DecodeError {
+                    code,
+                    describe_error_fn,
+                })
             },
         }
     }
@@ -65,14 +78,6 @@ impl Decoder for BrotliC {
             },
             None => false,
         }
-    }
-
-    #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        let result = unsafe {
-            sys::BrotliDecoderErrorString(code.0 as _)
-        };
-        crate::utils::convert_c_str(result)
     }
 }
 

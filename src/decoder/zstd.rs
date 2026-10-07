@@ -8,6 +8,13 @@ use super::{Decode, DecodeError, DecodeStatus, Decoder};
 use crate::mem::compu_free_with_state;
 use crate::mem::compu_malloc_with_state;
 
+fn describe_error_fn(code: i32) -> Option<&'static str> {
+    let result = unsafe {
+        sys::ZSTD_getErrorName(code as _)
+    };
+    crate::utils::convert_c_str(result)
+}
+
 #[repr(transparent)]
 ///Decoder backed by [zstd](https://github.com/gyscos/zstd-rs)
 pub struct ZstdC {
@@ -69,7 +76,10 @@ impl Decoder for ZstdC {
                         //Not error, means it was able to flush out everything it had
                         Ok(DecodeStatus::NeedInput)
                     } else {
-                        Err(DecodeError(size as _))
+                        Err(DecodeError {
+                            code: size as _,
+                            describe_error_fn,
+                        })
                     }
                 }
             },
@@ -82,14 +92,6 @@ impl Decoder for ZstdC {
             sys::ZSTD_DCtx_reset(self.inner.as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
         };
         result == 0
-    }
-
-    #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        let result = unsafe {
-            sys::ZSTD_getErrorName(code.0 as _)
-        };
-        crate::utils::convert_c_str(result)
     }
 }
 

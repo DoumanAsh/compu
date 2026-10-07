@@ -1,5 +1,5 @@
 use compu::{decoder, Buffer};
-use decoder::{DecodeError, DecodeStatus, DecoderExt};
+use decoder::{DecodeStatus, DecoderExt};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
@@ -50,7 +50,7 @@ fn test_case(idx: usize, decoder: &mut impl decoder::Decoder, data: &[u8], compr
     loop {
         let (consumed, status) = match buffer.decode(decoder, buffer_input) {
             Ok(result) => result,
-            Err(error) => panic!("Unexpected failure: {:?}", decoder.describe_error(error)),
+            Err(error) => panic!("Unexpected failure: {}", error),
         };
         buffer_input = &buffer_input[consumed..];
         output.extend_from_slice(buffer.data());
@@ -70,10 +70,6 @@ fn test_case(idx: usize, decoder: &mut impl decoder::Decoder, data: &[u8], compr
     //Spare capacity leftover will be present as we do not have precise ability to allocate
     assert_eq!(data, output);
     decoder.reset();
-
-    let error = DecodeError::no_error();
-    let error = decoder.describe_error(error).expect("to get generic error");
-    println!("error={error}");
 }
 
 #[cfg(feature = "bytes")]

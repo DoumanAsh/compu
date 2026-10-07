@@ -19,6 +19,13 @@ extern "C" {
     pub fn zError(code: c_int) -> *const i8;
 }
 
+fn describe_error_fn(code: i32) -> Option<&'static str> {
+    let result = unsafe {
+        zError(code)
+    };
+    crate::utils::convert_c_str(result)
+}
+
 #[repr(transparent)]
 ///Decoder backed by [libz-ng](https://github.com/rust-lang/libz-sys)
 pub struct ZlibNg {
@@ -87,7 +94,10 @@ impl Decoder for ZlibNg {
                 },
                 sys::Z_STREAM_END => Ok(DecodeStatus::Finished),
                 sys::Z_BUF_ERROR => Ok(DecodeStatus::NeedOutput),
-                other => Err(crate::decoder::DecodeError(other as _)),
+                code => Err(DecodeError {
+                    code: code as _,
+                    describe_error_fn,
+                })
             }
         }
 
@@ -98,14 +108,6 @@ impl Decoder for ZlibNg {
         unsafe {
             sys::inflateReset(&mut self.inner) == sys::Z_OK
         }
-    }
-
-    #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        let result = unsafe {
-            zError(code.0)
-        };
-        crate::utils::convert_c_str(result)
     }
 }
 

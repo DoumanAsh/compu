@@ -17,6 +17,21 @@ mod sys {
 
 const DEFAULT_INFLATE: sys::InflateFlush = sys::InflateFlush::NoFlush;
 
+fn describe_error_fn(code: i32) -> Option<&'static str> {
+    match sys::ReturnCode::try_from_c_int(code as _) {
+        Some(sys::ReturnCode::Ok) => Some("ok"),
+        Some(sys::ReturnCode::StreamEnd) => Some("stream end"),
+        Some(sys::ReturnCode::NeedDict) => Some("need dictionary"),
+        Some(sys::ReturnCode::ErrNo) => Some("file error"),
+        Some(sys::ReturnCode::StreamError) => Some("stream error"),
+        Some(sys::ReturnCode::DataError) => Some("data error"),
+        Some(sys::ReturnCode::MemError) => Some("insufficient memory"),
+        Some(sys::ReturnCode::BufError) => Some("buffer error"),
+        Some(sys::ReturnCode::VersionError) => Some("incompatible version"),
+        _ => Some("impossible error"),
+    }
+}
+
 #[repr(transparent)]
 ///Decoder backed by [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs)
 pub struct ZlibRust {
@@ -88,7 +103,10 @@ impl Decoder for ZlibRust {
                 },
                 sys::Z_STREAM_END => Ok(DecodeStatus::Finished),
                 sys::Z_BUF_ERROR => Ok(DecodeStatus::NeedOutput),
-                other => Err(crate::decoder::DecodeError(other as _)),
+                code => Err(DecodeError {
+                    code: code as _,
+                    describe_error_fn,
+                })
             }
         }
     }
@@ -96,22 +114,6 @@ impl Decoder for ZlibRust {
     #[inline(always)]
     fn reset(&mut self) -> bool {
         sys::reset(self.as_mut()) == sys::Z_OK
-    }
-
-    #[inline(always)]
-    fn describe_error(&self, code: DecodeError) -> Option<&'static str> {
-        match sys::ReturnCode::try_from_c_int(code.0 as _) {
-            Some(sys::ReturnCode::Ok) => Some("ok"),
-            Some(sys::ReturnCode::StreamEnd) => Some("stream end"),
-            Some(sys::ReturnCode::NeedDict) => Some("need dictionary"),
-            Some(sys::ReturnCode::ErrNo) => Some("file error"),
-            Some(sys::ReturnCode::StreamError) => Some("stream error"),
-            Some(sys::ReturnCode::DataError) => Some("data error"),
-            Some(sys::ReturnCode::MemError) => Some("insufficient memory"),
-            Some(sys::ReturnCode::BufError) => Some("buffer error"),
-            Some(sys::ReturnCode::VersionError) => Some("incompatible version"),
-            _ => Some("impossible error"),
-        }
     }
 }
 
