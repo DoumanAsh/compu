@@ -185,7 +185,7 @@ fn should_encode_and_decode_brotli_c() {
 #[cfg(feature = "brotli-c")]
 #[test]
 fn should_encode_and_decode_brotli_c_text() {
-    let mut encoder = encoder::BrotliC::new(BrotliOptions::new().with_text_mode()).expect("create brotli encoder");
+    let mut encoder = encoder::BrotliC::new(BrotliOptions::new().text_mode()).expect("create brotli encoder");
     let mut decoder = decoder::BrotliC::new().expect("create brotli decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
@@ -205,7 +205,7 @@ fn should_encode_and_decode_brotli_rust() {
 #[cfg(feature = "brotli-rust")]
 #[test]
 fn should_encode_and_decode_brotli_rust_text() {
-    let mut encoder = encoder::BrotliRust::new(BrotliOptions::new().with_text_mode());
+    let mut encoder = encoder::BrotliRust::new(BrotliOptions::new().text_mode());
     let mut decoder = decoder::BrotliRust::new();
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);

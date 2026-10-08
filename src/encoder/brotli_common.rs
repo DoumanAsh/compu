@@ -88,13 +88,13 @@ impl BrotliOptions {
     }
 
     ///Sets text mode optimized for processing UTF-8 strings
-    pub const fn with_text_mode(mut self) -> Self {
+    pub const fn text_mode(mut self) -> Self {
         self.mode = BrotliEncoderMode::Text;
         self
     }
 
     ///Sets font mode optimized for processing WOFF 2.0 web fonts
-    pub const fn with_font_mode(mut self) -> Self {
+    pub const fn font_mode(mut self) -> Self {
         self.mode = BrotliEncoderMode::Font;
         self
     }
