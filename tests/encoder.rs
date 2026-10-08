@@ -1,6 +1,6 @@
 use compu::{decoder, encoder, Buffer};
 use decoder::{DecodeStatus, Detection, Decoder, DecoderExt};
-use encoder::{EncodeOp, EncodeStatus, Encoder, EncoderExt};
+use encoder::{EncodeOp, EncodeStatus, Encoder, EncoderExt, BrotliOptions};
 
 const DATA: [&[u8]; 2] = [
     include_bytes!("data/10x10y"),
@@ -182,10 +182,30 @@ fn should_encode_and_decode_brotli_c() {
     }
 }
 
+#[cfg(feature = "brotli-c")]
+#[test]
+fn should_encode_and_decode_brotli_c_text() {
+    let mut encoder = encoder::BrotliC::new(BrotliOptions::new().with_text_mode()).expect("create brotli encoder");
+    let mut decoder = decoder::BrotliC::new().expect("create brotli decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+    }
+}
+
 #[cfg(feature = "brotli-rust")]
 #[test]
 fn should_encode_and_decode_brotli_rust() {
     let mut encoder = encoder::BrotliRust::new(Default::default());
+    let mut decoder = decoder::BrotliRust::new();
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+    }
+}
+
+#[cfg(feature = "brotli-rust")]
+#[test]
+fn should_encode_and_decode_brotli_rust_text() {
+    let mut encoder = encoder::BrotliRust::new(BrotliOptions::new().with_text_mode());
     let mut decoder = decoder::BrotliRust::new();
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);

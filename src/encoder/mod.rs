@@ -278,7 +278,7 @@ impl<T: Encoder> EncoderExt for T {
 #[cfg(any(feature = "brotli", feature = "brotli-c"))]
 mod brotli_common;
 #[cfg(any(feature = "brotli", feature = "brotli-c"))]
-pub use brotli_common::{BrotliEncoderMode, BrotliOptions};
+pub use brotli_common::{BrotliOptions, BrotliQuality};
 #[cfg(feature = "brotli")]
 mod brotli;
 #[cfg(feature = "brotli")]
