@@ -109,6 +109,11 @@ fn should_decode_brotli_rust() {
         test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
+
+        let mut dyn_decoder = decoder::create_content_encoding(b"br").unwrap();
+        test_case(idx, &mut dyn_decoder, DATA[idx], DATA_BROTLI[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_BROTLI[idx]);
     }
 }
 
@@ -122,6 +127,11 @@ fn should_decode_zstd() {
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
 
         let mut dyn_decoder = decoder::Detection::detect(DATA_ZSTD[idx]).expect("detect zstd").create_decoder().unwrap();
+        test_case(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
+
+        let mut dyn_decoder = decoder::create_content_encoding(b"zstd").unwrap();
         test_case(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
@@ -163,5 +173,11 @@ fn should_decode_zlib_rust_gzip() {
         test_case(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
+
+        let mut dyn_decoder = decoder::create_content_encoding(b"gzip").unwrap();
+        test_case(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
+        #[cfg(feature = "bytes")]
+        test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
+
     }
 }

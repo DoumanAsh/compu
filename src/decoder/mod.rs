@@ -7,8 +7,17 @@ use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 
+#[cfg(any(feature = "brotli-rust", feature = "brotli-c"))]
+#[inline(always)]
+fn brotli_select() -> Option<Box<dyn Decoder>> {
+    #[cfg(feature = "brotli-rust")]
+    return Some(Box::new(BrotliRust::new()));
+    #[cfg(all(feature = "brotli-c", not(feature = "brotli-rust")))]
+    return BrotliC::new().map(|result| Box::new(result) as Box<_>);
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
-fn zlib_decoder_select(mode: ZlibMode) -> Option<Box<dyn Decoder>> {
+fn zlib_select(mode: ZlibMode) -> Option<Box<dyn Decoder>> {
     #[cfg(feature = "zlib-rust")]
     return ZlibRust::new(mode).map(|decoder| Box::new(decoder) as Box<_>);
     #[cfg(all(feature = "zlib-ng", not(feature = "zlib-rust")))]
@@ -137,9 +146,9 @@ impl Detection {
             #[cfg(feature = "zstd")]
             Self::Zstd => ZstdC::new(ZstdOptions::new()).map(|decoder| Box::new(decoder) as Box<_>),
             #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
-            Self::Zlib => zlib_decoder_select(ZlibMode::Zlib),
+            Self::Zlib => zlib_select(ZlibMode::Zlib),
             #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
-            Self::Gzip => zlib_decoder_select(ZlibMode::Gzip),
+            Self::Gzip => zlib_select(ZlibMode::Gzip),
             _ => None,
         }
     }
@@ -495,5 +504,22 @@ impl<const N: usize> crate::Buffer<N> {
             }
             Err(error) => Err(error),
         }
+    }
+}
+
+///Creates dynamic decoder from the `value` of [Content-Encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding) header
+///
+///Whenever possible, priority is given to rust implementation
+pub fn create_content_encoding(value: &[u8]) -> Option<Box<dyn Decoder>> {
+    match value {
+        #[cfg(any(feature = "brotli-rust", feature = "brotli-c"))]
+        b"br" => brotli_select(),
+        #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
+        b"gzip" => zlib_select(ZlibMode::Gzip),
+        #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
+        b"deflate" => zlib_select(ZlibMode::Zlib),
+        #[cfg(feature = "zstd")]
+        b"zstd" => ZstdC::new(ZstdOptions::new()).map(|result| Box::new(result) as Box<_>),
+        _ => None,
     }
 }
