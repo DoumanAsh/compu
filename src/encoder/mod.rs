@@ -306,7 +306,7 @@ pub use zlib_rust::ZlibRust;
 #[cfg(feature = "zstd")]
 mod zstd;
 #[cfg(feature = "zstd")]
-pub use zstd::{ZstdOptions, ZstdStrategy, ZstdC};
+pub use zstd::{ZstdOptions, ZstdLevel, ZstdStrategy, ZstdC};
 
 impl<const N: usize> crate::Buffer<N> {
     ///Decodes `input` using `decoder` returning number of bytes consumed in `input`

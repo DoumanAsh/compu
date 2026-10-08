@@ -116,7 +116,7 @@ impl EncodeOp {
 }
 
 #[derive(Copy, Clone)]
-#[repr(i32)]
+#[repr(u8)]
 ///Possible enumeration of strategies from fastest to slowest
 pub enum ZstdStrategy {
     ///As name implies
@@ -142,11 +142,53 @@ pub enum ZstdStrategy {
 }
 
 #[derive(Copy, Clone)]
-///ZSTD options.
+#[repr(u8)]
+#[allow(missing_docs)]
+///Possible compression levels provided by zstd library from lowest `L1` to highest compression of `L22`
 ///
-///For details refer to their crappy documentation: `http://facebook.github.io/zstd/zstd_manual.html#Chapter5`
+///The higher compression level, the bigger CPU and memory requirements are.
+pub enum ZstdLevel {
+    ///Lowest compression level
+    L1 = 1,
+    L2 = 2,
+    ///Default level
+    L3 = 3,
+    L4 = 4,
+    L5 = 5,
+    L6 = 6,
+    L7 = 7,
+    L8 = 8,
+    L9 = 9,
+    L10 = 10,
+    L11 = 11,
+    L12 = 12,
+    L13 = 13,
+    L14 = 14,
+    L15 = 15,
+    L16 = 16,
+    L17 = 17,
+    L18 = 18,
+    ///Reasonable maximum compression level recommended for use
+    ///
+    ///Anything higher is only useful when compression level is all that matters
+    L19 = 19,
+    L20 = 20,
+    L21 = 21,
+    ///Highest compression level
+    L22 = 22,
+}
+
+impl Default for ZstdLevel {
+    #[inline(always)]
+    fn default() -> Self {
+        Self::L3
+    }
+}
+
+#[derive(Copy, Clone)]
+///ZSTD options.
 pub struct ZstdOptions {
-    level: i32,
+    level: ZstdLevel,
     strategy: ZstdStrategy,
     window_log: i32,
 }
@@ -156,17 +198,15 @@ impl ZstdOptions {
     ///Creates new default value
     pub const fn new() -> Self {
         Self {
-            level: sys::ZSTD_CLEVEL_DEFAULT as _,
+            level: ZstdLevel::L3,
             strategy: ZstdStrategy::Default,
             window_log: sys::ZSTD_WINDOWLOG_LIMIT_DEFAULT as _,
         }
     }
 
     #[inline(always)]
-    ///Sets level
-    pub const fn level(mut self, level: i32) -> Self {
-        assert!(level <= sys::ZSTD_TARGETLENGTH_MAX as i32);
-        assert!(level >= -(sys::ZSTD_TARGETLENGTH_MAX as i32));
+    ///Sets level in range of `1..=22`
+    pub const fn level(mut self, level: ZstdLevel) -> Self {
         self.level = level;
         self
     }

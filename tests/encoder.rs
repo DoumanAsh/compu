@@ -222,6 +222,26 @@ fn should_encode_and_decode_zstd() {
     }
 }
 
+#[cfg(feature = "zstd")]
+#[test]
+fn should_encode_and_decode_zstd_min_level() {
+    let mut encoder = encoder::ZstdC::new(encoder::ZstdOptions::new().level(encoder::ZstdLevel::L1).strategy(encoder::ZstdStrategy::Fast)).expect("create zstd encoder");
+    let mut decoder = decoder::ZstdC::new(Default::default()).expect("create zstd decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zstd);
+    }
+}
+
+#[cfg(feature = "zstd")]
+#[test]
+fn should_encode_and_decode_zstd_max_level() {
+    let mut encoder = encoder::ZstdC::new(encoder::ZstdOptions::new().level(encoder::ZstdLevel::L22).strategy(encoder::ZstdStrategy::BtUltra2)).expect("create zstd encoder");
+    let mut decoder = decoder::ZstdC::new(Default::default()).expect("create zstd decoder");
+    for idx in 0..DATA.len() {
+        test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zstd);
+    }
+}
+
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_encode_and_decode_zlib_gzip() {
