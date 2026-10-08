@@ -1,11 +1,8 @@
 //! zlib-rust module
 
-extern crate alloc;
-
-use alloc::boxed::Box;
 use core::{ptr, mem};
 
-use super::{Encode, EncodeOp, Encoder, Interface, ZlibOptions, ZlibStrategy};
+use super::{Encode, EncodeOp, EncodeStatus, Encoder, ZlibOptions, ZlibStrategy};
 
 mod sys {
     pub use zlib_rs::c_api::z_stream;
@@ -20,20 +17,16 @@ mod sys {
     pub use zlib_rs::DeflateFlush::Finish as Z_FINISH;
 }
 
-static ZLIB: Interface = Interface {
-    drop_fn,
-    reset_fn,
-    encode_fn,
-};
-
 #[repr(transparent)]
-pub struct State {
+///Encoder backed by [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs)
+pub struct ZlibRust {
     inner: sys::z_stream,
 }
 
-impl State {
+impl ZlibRust {
     #[inline(always)]
-    pub fn new() -> Self {
+    ///Creates new instance unless underlying library is unable to create instance
+    pub fn new(opts: ZlibOptions) -> Option<Self> {
         let mut this = Self {
             inner: sys::z_stream {
                 next_in: ptr::null_mut(),
@@ -53,38 +46,6 @@ impl State {
             }
         };
         this.inner.configure_default_rust_allocator();
-        this
-    }
-
-    #[inline(always)]
-    pub fn reset(&mut self) -> sys::ReturnCode {
-        sys::reset(self.as_mut())
-    }
-
-    //z_stream has the same layout as DeflateStream,
-    //but for some reason guy is doing some bullshit requiring to transmute it
-    #[inline(always)]
-    fn as_mut(&mut self) -> &mut sys::DeflateStream<'_> {
-        unsafe {
-            mem::transmute(&mut self.inner)
-        }
-    }
-}
-
-impl Drop for State {
-    #[inline(always)]
-    fn drop(&mut self) {
-        let _ = sys::end(self.as_mut());
-    }
-}
-
-impl Interface {
-    #[inline]
-    ///Creates encoder with `zlib-rs` interface
-    ///
-    ///Returns `None` if unable to initialize it (likely due to lack of memory)
-    pub fn zlib_rust(opts: ZlibOptions) -> Option<Encoder> {
-        let mut instance = Box::new(State::new());
 
         let strategy = match opts.strategy {
             ZlibStrategy::Default => sys::Strategy::Default,
@@ -102,35 +63,67 @@ impl Interface {
             mem_level: opts.mem_level as _,
         };
 
-        let result = sys::init(&mut instance.inner, config);
+        let result = sys::init(&mut this.inner, config);
 
         if result == sys::ReturnCode::Ok {
-            let instance = ptr::NonNull::from(Box::leak(instance)).cast();
-            Some(ZLIB.inner_encoder(instance, [0; 2]))
+            Some(this)
         } else {
             None
         }
     }
-}
 
-unsafe fn encode_fn(state: ptr::NonNull<u8>, input: *const u8, input_remain: usize, output: *mut u8, output_remain: usize, op: EncodeOp) -> Encode {
-    internal_zlib_impl_encode!(state, input, input_remain, output, output_remain, op)
-}
-
-#[inline]
-fn reset_fn(state: ptr::NonNull<u8>, _: [u8; 2]) -> Option<ptr::NonNull<u8>> {
-    let result = unsafe {
-        (*(state.as_ptr() as *mut State)).reset()
-    };
-    match result {
-        sys::ReturnCode::Ok => Some(state),
-        _ => None,
+    //z_stream has the same layout as DeflateStream,
+    #[inline(always)]
+    fn as_mut(&mut self) -> &mut sys::DeflateStream<'_> {
+        unsafe {
+            mem::transmute(&mut self.inner)
+        }
     }
 }
 
-#[inline]
-fn drop_fn(state: ptr::NonNull<u8>) {
-    unsafe {
-        drop(Box::from_raw(state.as_ptr() as *mut State));
+impl Encoder for ZlibRust {
+    #[inline]
+    fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
+        let op = match op {
+            EncodeOp::Process => sys::Z_NO_FLUSH,
+            EncodeOp::Flush => sys::Z_SYNC_FLUSH,
+            EncodeOp::Finish => sys::Z_FINISH
+        };
+
+        self.inner.avail_out = output.len() as _;
+        self.inner.next_out = output.as_mut_ptr() as *mut _;
+
+        self.inner.avail_in = input.len() as _;
+        self.inner.next_in = input.as_ptr();
+
+        let result = sys::deflate(self.as_mut(), op);
+
+        Encode {
+            input_remain: self.inner.avail_in as usize,
+            output_remain: self.inner.avail_out as usize,
+            status: match result {
+                sys::Z_STREAM_END => EncodeStatus::Finished,
+                //If it is final chunk, zlib may report OK while it needs more output (specifically in case of GZIP)
+                sys::Z_OK => if op == sys::Z_FINISH {
+                    EncodeStatus::NeedOutput
+                } else {
+                    EncodeStatus::Continue
+                },
+                sys::Z_BUF_ERROR => EncodeStatus::NeedOutput,
+                _ => EncodeStatus::Error,
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        sys::reset(self.as_mut()) == sys::ReturnCode::Ok
+    }
+}
+
+impl Drop for ZlibRust {
+    #[inline(always)]
+    fn drop(&mut self) {
+        let _ = sys::end(self.as_mut());
     }
 }

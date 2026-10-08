@@ -1,81 +1,9 @@
-use core::{ptr, slice};
+use core::{slice, mem};
 
-use super::{Decode, DecodeError, DecodeStatus, Decoder, Interface};
+use super::{Decode, DecodeError, DecodeStatus, Decoder};
 use crate::mem::brotli_rust::BrotliAllocator;
-use crate::mem::Box;
 pub(crate) type Instance = brotli::BrotliState<BrotliAllocator, BrotliAllocator, BrotliAllocator>;
 
-static BROTLI_RUST: Interface = Interface::new(
-    decode_fn,
-    reset_fn,
-    drop_fn,
-    describe_error_fn
-);
-
-impl Interface {
-    #[inline]
-    ///Creates decoder with `brotli-rust` interface
-    ///
-    ///Panics on OOM issues
-    pub fn brotli_rust() -> Decoder {
-        let state = Box::new(instance());
-
-        let ptr = ptr::NonNull::from(Box::leak(state));
-        BROTLI_RUST.inner_decoder(ptr.cast())
-    }
-}
-#[inline]
-fn instance() -> Instance {
-    Instance::new(Default::default(), Default::default(), Default::default())
-}
-
-#[inline]
-unsafe fn decode_fn(state: ptr::NonNull<u8>, input: *const u8, mut input_remain: usize, output: *mut u8, mut output_remain: usize) -> Decode {
-    let state = unsafe {
-        &mut *(state.as_ptr() as *mut Instance)
-    };
-
-    let input = unsafe {
-        slice::from_raw_parts(input, input_remain)
-    };
-    //Potential UB but it is non-issue
-    //Complain here
-    //https://github.com/dropbox/rust-brotli/issues/177
-    let output = unsafe {
-        slice::from_raw_parts_mut(output, output_remain)
-    };
-
-    let result = brotli::BrotliDecompressStream(&mut input_remain, &mut 0, input, &mut output_remain, &mut 0, output, &mut 0, state);
-
-    Decode {
-        input_remain,
-        output_remain,
-        status: match result {
-            brotli::BrotliResult::ResultSuccess => Ok(DecodeStatus::Finished),
-            brotli::BrotliResult::NeedsMoreInput => Ok(DecodeStatus::NeedInput),
-            brotli::BrotliResult::NeedsMoreOutput => Ok(DecodeStatus::NeedOutput),
-            brotli::BrotliResult::ResultFailure => Err(DecodeError(state.error_code as _)),
-        },
-    }
-}
-
-#[inline]
-fn reset_fn(state: ptr::NonNull<u8>) -> Option<ptr::NonNull<u8>> {
-    let mut state = unsafe {
-        Box::from_raw(state.as_ptr() as *mut Instance)
-    };
-
-    *state = instance();
-    let ptr = Box::leak(state);
-    Some(ptr::NonNull::from(ptr).cast())
-}
-
-#[inline]
-fn drop_fn(state: ptr::NonNull<u8>) {
-    let _ = unsafe { Box::from_raw(state.as_ptr() as *mut Instance) };
-}
-
-#[inline]
 fn describe_error_fn(code: i32) -> Option<&'static str> {
     match code {
         0 => Some("NO_ERROR"),
@@ -119,5 +47,55 @@ fn describe_error_fn(code: i32) -> Option<&'static str> {
         /* "Impossible" states */
         -31 => Some("ERROR_UNREACHABLE"),
         _ => None,
+    }
+}
+
+#[repr(transparent)]
+///Decoder backed by [brotli](https://github.com/dropbox/rust-brotli)
+pub struct BrotliRust {
+    inner: Instance
+}
+
+impl BrotliRust {
+    #[inline]
+    ///Creates new instance
+    pub fn new() -> Self {
+        Self {
+            inner: Instance::new(Default::default(), Default::default(), Default::default())
+        }
+    }
+}
+
+impl Decoder for BrotliRust {
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        let mut input_remain = input.len();
+        let mut output_remain = output.len();
+        //Potential UB but it is non-issue
+        //Complain here
+        //https://github.com/dropbox/rust-brotli/issues/177
+        let output = unsafe {
+            slice::from_raw_parts_mut(output.as_mut_ptr() as *mut u8, output_remain)
+        };
+
+        let result = brotli::BrotliDecompressStream(&mut input_remain, &mut 0, input, &mut output_remain, &mut 0, output, &mut 0, &mut self.inner);
+        Decode {
+            input_remain,
+            output_remain,
+            status: match result {
+                brotli::BrotliResult::ResultSuccess => Ok(DecodeStatus::Finished),
+                brotli::BrotliResult::NeedsMoreInput => Ok(DecodeStatus::NeedInput),
+                brotli::BrotliResult::NeedsMoreOutput => Ok(DecodeStatus::NeedOutput),
+                brotli::BrotliResult::ResultFailure => Err(DecodeError {
+                    code: self.inner.error_code as _,
+                    describe_error_fn,
+                }),
+            },
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        *self = Self::new();
+        true
     }
 }

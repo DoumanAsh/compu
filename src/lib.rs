@@ -2,40 +2,50 @@
 //!
 //!## API
 //!
-//!API is mostly thin layer that provides uniform behavior for all algorithms the best it can.
+//!API is mostly thin interface that provides uniform behavior for all algorithms the best it can.
 //!
 //!Please read documentation to see how to use:
 //!
-//!- [Decoder](decoder/struct.Decoder.html)
-//!- [Encoder](encoder/struct.Encoder.html)
+//!- [Decoder](decoder/trait.Decoder.html)
+//!- [DecoderExt](decoder/trait.DecoderExt.html)
+//!- [Encoder](encoder/trait.Encoder.html)
+//!- [EncoderExt](encoder/trait.EncoderExt.html)
+//!- [Buffer]
 //!
 //!## Features
 //!
 //!All features are off by default.
+//!
 //!This crate requires `alloc` to be available with system allocator set.
 //!
-//!- `brotli-c` - Enables `brotli` interface using C library.
-//!- `brotli-rust` - Enables `brotli` interface using pure Rust library.
-//!- `zlib` - Enables `zlib` interface.
-//!- `zlib-static` - Enables `zlib` interface with `static` feature.
-//!- `zlib-ng` - Enables `zlib-ng` interface.
-//!- `zlib-rust` - Enables `zlib-rs` interface.
-//!- `zstd` - Enables `zstd` interface.
-//!- `bytes` - Enables `bytes` support
+//!### Codecs
+//!
+//!  Feature | Description | Encoder | Decoder |
+//! ---------|------------ | ------- | ------- |
+//!  `brotli-c` | Enables `brotli` interface using C library | [decoder::BrotliC] | [encoder::BrotliC]
+//!  `brotli-rust` | Enables `brotli` interface using Rust library | [decoder::BrotliRust] | [encoder::BrotliRust]
+//!  `zlib` | Enables `zlib` interface using libz library | [decoder::ZlibC] | [encoder::ZlibC]
+//!  `zlib-static` | Enables `zlib` interface using libz library with 'static' feature | [decoder::ZlibC] | [encoder::ZlibC]
+//!  `zlib-ng` | Enables `zlib` interface using libz-ng library | [decoder::ZlibNg] | [encoder::ZlibNg]
+//!  `zlib-rust` | Enables `zlib` interface using zlib-rs library | [decoder::ZlibRust] | [encoder::ZlibRust]
+//!  `zstd` | Enables `zstd` interface using zstd C library | [decoder::ZstdC] | [encoder::ZstdC]
+//!
+//!### Misc
+//!
+//!- `bytes` - Enables `bytes` support via [decoder::DecoderExt] and [encoder::EncoderExt]
 //!
 //!## Usage
 //!
 //!### Decode
 //!
 //!Minimal example of using Decoder.
-//!Use [Interface](decoder/struct.Interface.html) to create instance.
 //!
 //!If you unsure about compression used, you can try [detect](decoder/enum.Detection.html#method.detect) it
 //!
 //!```rust,no_run
 //!use compu::{Decoder, DecodeStatus, DecodeError};
 //!
-//!fn example(decoder: &mut Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
+//!fn example(decoder: &mut impl Decoder, input: &[u8]) -> Result<Vec<u8>, DecodeError> {
 //!     let mut output = Vec::with_capacity(1024);
 //!     loop {
 //!         let result = decoder.decode_vec(input, &mut output).status?;
@@ -57,12 +67,11 @@
 //!### Encode
 //!
 //!Minimal example of using Encoder.
-//!Use [Interface](encoder/struct.Interface.html) to create instance.
 //!
 //!```rust,no_run
 //!use compu::{Encoder, EncodeStatus, EncodeOp};
 //!
-//!fn example(encoder: &mut Encoder, input: &[u8]) -> Vec<u8> {
+//!fn example(encoder: &mut impl Encoder, input: &[u8]) -> Vec<u8> {
 //!     let mut output = Vec::with_capacity(1024);
 //!     loop {
 //!         let result = encoder.encode_vec(input, &mut output, EncodeOp::Finish).status;
@@ -93,7 +102,7 @@
 
 #![no_std]
 #![warn(missing_docs)]
-#![allow(clippy::style, clippy::derivable_impls)]
+#![allow(clippy::style)]
 
 pub mod decoder;
 #[cfg(any(
@@ -104,9 +113,9 @@ pub mod decoder;
     feature = "zstd"
 ))]
 pub(crate) mod utils;
-pub use decoder::{Decode, DecodeError, DecodeStatus, Decoder, Detection};
+pub use decoder::{Decode, DecodeError, DecodeStatus, Decoder, DecoderExt, Detection};
 pub mod encoder;
-pub use encoder::{Encode, EncodeOp, EncodeStatus, Encoder};
+pub use encoder::{Encode, EncodeOp, EncodeStatus, Encoder, EncoderExt};
 mod buffer;
 pub mod mem;
 pub use buffer::Buffer;
