@@ -28,7 +28,7 @@ fn describe_error_fn(code: i32) -> Option<&'static str> {
         Some(sys::ReturnCode::MemError) => Some("insufficient memory"),
         Some(sys::ReturnCode::BufError) => Some("buffer error"),
         Some(sys::ReturnCode::VersionError) => Some("incompatible version"),
-        _ => Some("impossible error"),
+        _ => None,
     }
 }
 
@@ -71,11 +71,11 @@ impl ZlibRust {
         }
     }
 
-    //z_stream has the same layout as DeflateStream,
+    //z_stream has the same layout as InflateStream,
     #[inline(always)]
     fn as_mut(&mut self) -> &mut sys::InflateStream<'_> {
         unsafe {
-            mem::transmute(&mut self.inner)
+            &mut *(&mut self.inner as *mut _ as *mut _)
         }
     }
 }

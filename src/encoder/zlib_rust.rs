@@ -76,7 +76,7 @@ impl ZlibRust {
     #[inline(always)]
     fn as_mut(&mut self) -> &mut sys::DeflateStream<'_> {
         unsafe {
-            mem::transmute(&mut self.inner)
+            &mut *(&mut self.inner as *mut _ as *mut _)
         }
     }
 }
