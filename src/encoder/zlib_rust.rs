@@ -127,3 +127,7 @@ impl Drop for ZlibRust {
         let _ = sys::end(self.as_mut());
     }
 }
+
+//These gets invalidated due to pointer usage, but in fact we're totally fine
+unsafe impl Send for ZlibRust {}
+unsafe impl Sync for ZlibRust {}

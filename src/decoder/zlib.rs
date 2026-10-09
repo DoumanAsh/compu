@@ -116,3 +116,7 @@ impl Drop for ZlibC {
         }
     }
 }
+
+//These gets invalidated due to pointer usage, but in fact we're totally fine
+unsafe impl Send for ZlibC {}
+unsafe impl Sync for ZlibC {}

@@ -89,3 +89,7 @@ impl Drop for BrotliC {
         }
     }
 }
+
+//These gets invalidated due to pointer usage, but in fact we're totally fine
+unsafe impl Send for BrotliC {}
+unsafe impl Sync for BrotliC {}

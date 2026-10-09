@@ -257,3 +257,7 @@ impl Default for ZstdOptions {
         Self::new()
     }
 }
+
+//These gets invalidated due to pointer usage, but in fact we're totally fine
+unsafe impl Send for ZstdC {}
+unsafe impl Sync for ZstdC {}
