@@ -2,6 +2,7 @@
 
 use super::brotli_common::BrotliOptions;
 use super::{Encode, EncodeOp, EncodeStatus, Encoder};
+use crate::mem::{Box, Unique};
 use crate::mem::brotli_rust::BrotliAllocator;
 use core::slice;
 
@@ -81,5 +82,12 @@ impl EncodeOp {
             Self::Flush => brotli::enc::encode::BrotliEncoderOperation::BROTLI_OPERATION_FLUSH,
             Self::Finish => brotli::enc::encode::BrotliEncoderOperation::BROTLI_OPERATION_FINISH,
         }
+    }
+}
+
+impl From<BrotliRust> for Unique<dyn Encoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: BrotliRust) -> Self {
+        Unique::from_box(Box::new(value) as Box<_>)
     }
 }

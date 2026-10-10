@@ -1,14 +1,11 @@
 //! Zlib module
 
-extern crate alloc;
-
 use libz_sys as sys;
 
-use alloc::boxed::Box;
 use core::ptr;
 
 use super::{Encode, EncodeOp, EncodeStatus, Encoder, ZlibOptions, ZlibStrategy};
-use crate::mem::{compu_alloc, compu_free_with_state};
+use crate::mem::{Box, Unique, compu_alloc, compu_free_with_state};
 
 #[repr(transparent)]
 ///Decoder backed by [libz](https://github.com/rust-lang/libz-sys)
@@ -120,3 +117,10 @@ impl Drop for ZlibC {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for ZlibC {}
 unsafe impl Sync for ZlibC {}
+
+impl From<Box<ZlibC>> for Unique<dyn Encoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: Box<ZlibC>) -> Self {
+        Unique::from_box(value as Box<_>)
+    }
+}

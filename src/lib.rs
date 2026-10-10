@@ -6,11 +6,12 @@
 //!
 //!Please read documentation to see how to use:
 //!
-//!- [Decoder](decoder/trait.Decoder.html)
-//!- [DecoderExt](decoder/trait.DecoderExt.html)
-//!- [Encoder](encoder/trait.Encoder.html)
-//!- [EncoderExt](encoder/trait.EncoderExt.html)
+//!- [Decoder]
+//!- [DecoderExt]
+//!- [Encoder]
+//!- [EncoderExt]
 //!- [Buffer]
+//!- [Unique](mem::Unique)
 //!
 //!## Features
 //!

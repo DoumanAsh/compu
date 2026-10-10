@@ -6,7 +6,7 @@ use core::ptr;
 
 use super::brotli_common::BrotliOptions;
 use super::{Encode, EncodeOp, EncodeStatus, Encoder};
-use crate::mem::{compu_free_with_state, compu_malloc_with_state};
+use crate::mem::{Box, Unique, compu_free_with_state, compu_malloc_with_state};
 
 ///Encoder backed by [brotli](https://github.com/DoumanAsh/compu-brotli-sys)
 pub struct BrotliC {
@@ -106,3 +106,10 @@ impl EncodeOp {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for BrotliC {}
 unsafe impl Sync for BrotliC {}
+
+impl From<BrotliC> for Unique<dyn Encoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: BrotliC) -> Self {
+        Unique::from_box(Box::new(value) as Box<_>)
+    }
+}

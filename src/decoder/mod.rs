@@ -7,23 +7,25 @@ use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
 
+use crate::mem::Unique;
+
 #[cfg(any(feature = "brotli-rust", feature = "brotli-c"))]
 #[inline(always)]
-fn brotli_select() -> Option<Box<dyn Decoder>> {
+fn brotli_select() -> Option<Unique<dyn Decoder + Send + Sync>> {
     #[cfg(feature = "brotli-rust")]
-    return Some(Box::new(BrotliRust::new()));
+    return Some(BrotliRust::new().into());
     #[cfg(all(feature = "brotli-c", not(feature = "brotli-rust")))]
-    return BrotliC::new().map(|result| Box::new(result) as Box<_>);
+    return BrotliC::new().map(Into::into);
 }
 
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
-fn zlib_select(mode: ZlibMode) -> Option<Box<dyn Decoder>> {
+fn zlib_select(mode: ZlibMode) -> Option<Unique<dyn Decoder + Send + Sync>> {
     #[cfg(feature = "zlib-rust")]
-    return ZlibRust::new(mode).map(|decoder| Box::new(decoder) as Box<_>);
+    return ZlibRust::new(mode).map(Into::into);
     #[cfg(all(feature = "zlib-ng", not(feature = "zlib-rust")))]
-    return ZlibNg::new(mode).map(|decoder| decoder as Box<_>);
+    return ZlibNg::new(mode).map(Into::into);
     #[cfg(all(any(feature = "zlib", feature = "zlib-static"), not(feature = "zlib-ng"), not(feature = "zlib-rust")))]
-    return ZlibC::new(mode).map(|decoder| decoder as Box<_>);
+    return ZlibC::new(mode).map(Into::into);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,10 +143,10 @@ impl Detection {
     ///1. [ZlibRust]
     ///2. [ZlibNg]
     ///3. [ZlibC]
-    pub fn create_decoder(&self) -> Option<Box<dyn Decoder>> {
+    pub fn create_decoder(&self) -> Option<Unique<dyn Decoder+ Send + Sync>> {
         match self {
             #[cfg(feature = "zstd")]
-            Self::Zstd => ZstdC::new(ZstdOptions::new()).map(|decoder| Box::new(decoder) as Box<_>),
+            Self::Zstd => ZstdC::new(ZstdOptions::new()).map(Into::into),
             #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
             Self::Zlib => zlib_select(ZlibMode::Zlib),
             #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
@@ -416,41 +418,38 @@ pub trait DecoderExt: Decoder {
 impl<T: Decoder> DecoderExt for T {
 }
 
-impl Decoder for alloc::boxed::Box<dyn Decoder> {
-    #[inline(always)]
-    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-        (**self).decode_uninit(input, output)
-    }
+macro_rules! impl_decoder_deref {
+    (
+        //You cannot match greedily so attempt to match components of generics
+        $(impl $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? Decoder for $typ:ty;)+
+    ) => {
 
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
+        $(
+            impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? Decoder for $typ {
+                #[inline(always)]
+                fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+                    (**self).decode_uninit(input, output)
+                }
+
+                #[inline(always)]
+                fn reset(&mut self) -> bool {
+                    (**self).reset()
+                }
+            }
+        )+
+
+    };
 }
 
-impl Decoder for &mut dyn Decoder {
-    #[inline(always)]
-    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-        (**self).decode_uninit(input, output)
-    }
-
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
-}
-
-impl<T: Decoder> Decoder for alloc::boxed::Box<T> {
-    #[inline(always)]
-    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
-        (**self).decode_uninit(input, output)
-    }
-
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
-}
+impl_decoder_deref!(
+    impl Decoder for Box<dyn Decoder>;
+    impl Decoder for Box<dyn Decoder + Send>;
+    impl Decoder for Box<dyn Decoder + Send + Sync>;
+    impl Decoder for &mut dyn Decoder;
+    impl<T: Decoder> Decoder for Box<T>;
+    impl<T: Decoder> Decoder for Unique<T>;
+    impl Decoder for Unique<dyn Decoder + Send + Sync>;
+);
 
 #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
 mod zlib_common;
@@ -507,10 +506,10 @@ impl<const N: usize> crate::Buffer<N> {
     }
 }
 
-///Creates dynamic decoder from the `value` of [Content-Encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding) header
+///Creates dynamic [Decoder] from the `value` of [Content-Encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Encoding) header
 ///
 ///Whenever possible, priority is given to rust implementation
-pub fn create_content_encoding(value: &[u8]) -> Option<Box<dyn Decoder>> {
+pub fn create_content_encoding_decoder(value: &[u8]) -> Option<Unique<dyn Decoder + Send + Sync>> {
     match value {
         #[cfg(any(feature = "brotli-rust", feature = "brotli-c"))]
         b"br" => brotli_select(),
@@ -519,7 +518,7 @@ pub fn create_content_encoding(value: &[u8]) -> Option<Box<dyn Decoder>> {
         #[cfg(any(feature = "zlib", feature = "zlib-static", feature = "zlib-ng", feature = "zlib-rust"))]
         b"deflate" => zlib_select(ZlibMode::Zlib),
         #[cfg(feature = "zstd")]
-        b"zstd" => ZstdC::new(ZstdOptions::new()).map(|result| Box::new(result) as Box<_>),
+        b"zstd" => ZstdC::new(ZstdOptions::new()).map(Into::into),
         _ => None,
     }
 }

@@ -1,6 +1,7 @@
 use core::{slice, mem};
 
 use super::{Decode, DecodeError, DecodeStatus, Decoder};
+use crate::mem::{Box, Unique};
 use crate::mem::brotli_rust::BrotliAllocator;
 pub(crate) type Instance = brotli::BrotliState<BrotliAllocator, BrotliAllocator, BrotliAllocator>;
 
@@ -97,5 +98,12 @@ impl Decoder for BrotliRust {
     fn reset(&mut self) -> bool {
         *self = Self::new();
         true
+    }
+}
+
+impl From<BrotliRust> for Unique<dyn Decoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: BrotliRust) -> Self {
+        Unique::from_box(Box::new(value) as Box<dyn Decoder + Send + Sync>)
     }
 }

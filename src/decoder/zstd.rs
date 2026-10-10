@@ -5,14 +5,21 @@ use zstd_sys as sys;
 use core::{mem, ptr};
 
 use super::{Decode, DecodeError, DecodeStatus, Decoder};
-use crate::mem::compu_free_with_state;
-use crate::mem::compu_malloc_with_state;
+use crate::mem::{Unique, compu_free_with_state, compu_malloc_with_state};
 
 fn describe_error_fn(code: i32) -> Option<&'static str> {
     let result = unsafe {
         sys::ZSTD_getErrorName(code as _)
     };
     crate::utils::convert_c_str(result)
+}
+
+#[inline(always)]
+fn dtor<T: ?Sized>(value: ptr::NonNull<T>) {
+    let result = unsafe {
+        sys::ZSTD_freeDStream(value.cast().as_ptr())
+    };
+    debug_assert_eq!(result, 0);
 }
 
 #[repr(transparent)]
@@ -42,7 +49,7 @@ impl ZstdC {
     }
 }
 
-impl Decoder for ZstdC {
+impl Decoder for sys::ZSTD_DCtx {
     fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
         let mut input = sys::ZSTD_inBuffer_s {
             src: input.as_ptr() as _,
@@ -55,7 +62,7 @@ impl Decoder for ZstdC {
             pos: 0,
         };
         let result = unsafe {
-            sys::ZSTD_decompressStream(self.inner.as_ptr(), &mut output, &mut input)
+            sys::ZSTD_decompressStream(self, &mut output, &mut input)
         };
 
         Decode {
@@ -89,19 +96,44 @@ impl Decoder for ZstdC {
     #[inline(always)]
     fn reset(&mut self) -> bool {
         let result = unsafe {
-            sys::ZSTD_DCtx_reset(self.inner.as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
+            sys::ZSTD_DCtx_reset(self, sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
         };
         result == 0
+    }
+}
+
+impl Decoder for ZstdC {
+    #[inline(always)]
+    fn decode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>]) -> Decode {
+        unsafe {
+            self.inner.as_mut().decode_uninit(input, output)
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        unsafe {
+            self.inner.as_mut().reset()
+        }
+    }
+}
+
+impl From<ZstdC> for Unique<dyn Decoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: ZstdC) -> Self {
+        let ptr = unsafe {
+            ptr::NonNull::new_unchecked(value.inner.as_ptr() as *mut (dyn Decoder + Send + Sync))
+        };
+        let result = Unique::new(ptr, dtor);
+        mem::forget(value);
+        result
     }
 }
 
 impl Drop for ZstdC {
     #[inline(always)]
     fn drop(&mut self) {
-        let result = unsafe {
-            sys::ZSTD_freeDStream(self.inner.as_ptr())
-        };
-        debug_assert_eq!(result, 0);
+        dtor(self.inner);
     }
 }
 

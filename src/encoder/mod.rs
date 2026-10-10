@@ -6,6 +6,9 @@ use core::{mem, slice};
 
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
+
+use crate::mem::Unique;
 
 #[derive(Copy, Clone, PartialEq)]
 ///Encoder operation
@@ -191,41 +194,39 @@ pub trait Encoder {
     fn reset(&mut self) -> bool;
 }
 
-impl Encoder for alloc::boxed::Box<dyn Encoder> {
-    #[inline(always)]
-    fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
-        (**self).encode_uninit(input, output, op)
-    }
+macro_rules! impl_encoder_deref {
+    (
+        //You cannot match greedily so attempt to match components of generics
+        $(impl $(< $( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+ >)? Encoder for $typ:ty;)+
+    ) => {
 
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
+        $(
+            impl$(< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? Encoder for $typ {
+                #[inline(always)]
+                fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
+                    (**self).encode_uninit(input, output, op)
+                }
+
+                #[inline(always)]
+                fn reset(&mut self) -> bool {
+                    (**self).reset()
+                }
+
+            }
+        )+
+    };
 }
 
-impl Encoder for &mut dyn Encoder {
-    #[inline(always)]
-    fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
-        (**self).encode_uninit(input, output, op)
-    }
 
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
-}
-
-impl<T: Encoder> Encoder for alloc::boxed::Box<T> {
-    #[inline(always)]
-    fn encode_uninit(&mut self, input: &[u8], output: &mut [mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
-        (**self).encode_uninit(input, output, op)
-    }
-
-    #[inline(always)]
-    fn reset(&mut self) -> bool {
-        (**self).reset()
-    }
-}
+impl_encoder_deref!(
+    impl Encoder for Box<dyn Encoder>;
+    impl Encoder for Box<dyn Encoder + Send>;
+    impl Encoder for Box<dyn Encoder + Send + Sync>;
+    impl Encoder for &mut dyn Encoder;
+    impl<T: Encoder> Encoder for Box<T>;
+    impl<T: Encoder> Encoder for Unique<T>;
+    impl Encoder for Unique<dyn Encoder + Send + Sync>;
+);
 
 ///Extensions to [Encoder]
 pub trait EncoderExt: Encoder {

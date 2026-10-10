@@ -1,16 +1,13 @@
 //! `zlib` wrapper
 
-extern crate alloc;
-
 use libz_sys as sys;
 
-use alloc::boxed::Box;
 use core::ffi::c_int;
 use core::{mem, ptr};
 
 use super::zlib_common::ZlibMode;
 use super::{Decode, Decoder, DecodeStatus, DecodeError};
-use crate::mem::{compu_alloc, compu_free_with_state};
+use crate::mem::{Box, Unique, compu_alloc, compu_free_with_state};
 
 const DEFAULT_INFLATE: i32 = 0;
 
@@ -120,3 +117,10 @@ impl Drop for ZlibC {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for ZlibC {}
 unsafe impl Sync for ZlibC {}
+
+impl From<Box<ZlibC>> for Unique<dyn Decoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: Box<ZlibC>) -> Self {
+        Unique::from_box(value as Box<dyn Decoder + Send + Sync>)
+    }
+}

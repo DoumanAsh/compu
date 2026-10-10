@@ -43,6 +43,7 @@ impl Default for ZlibMode {
     }
 }
 
+#[derive(Copy, Clone)]
 ///Zlib configuration for encoder.
 pub struct ZlibOptions {
     ///Mode

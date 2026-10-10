@@ -104,13 +104,13 @@ fn should_decode_brotli_c() {
 #[cfg(feature = "brotli-rust")]
 #[test]
 fn should_decode_brotli_rust() {
-    let mut decoder = decoder::BrotliRust::new();
+    let mut decoder: compu::mem::Unique<_> = decoder::BrotliRust::new().into();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut decoder, DATA[idx], DATA_BROTLI[idx]);
 
-        let mut dyn_decoder = decoder::create_content_encoding(b"br").unwrap();
+        let mut dyn_decoder = decoder::create_content_encoding_decoder(b"br").unwrap();
         test_case(idx, &mut dyn_decoder, DATA[idx], DATA_BROTLI[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_BROTLI[idx]);
@@ -120,7 +120,7 @@ fn should_decode_brotli_rust() {
 #[cfg(feature = "zstd")]
 #[test]
 fn should_decode_zstd() {
-    let mut decoder = decoder::ZstdC::new(Default::default()).expect("create zstd decoder");
+    let mut decoder: compu::mem::Unique<_> = decoder::ZstdC::new(Default::default()).expect("create zstd decoder").into();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_ZSTD[idx]);
         #[cfg(feature = "bytes")]
@@ -131,7 +131,7 @@ fn should_decode_zstd() {
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
 
-        let mut dyn_decoder = decoder::create_content_encoding(b"zstd").unwrap();
+        let mut dyn_decoder = decoder::create_content_encoding_decoder(b"zstd").unwrap();
         test_case(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_ZSTD[idx]);
@@ -141,7 +141,7 @@ fn should_decode_zstd() {
 #[cfg(any(feature = "zlib", feature = "zlib-static"))]
 #[test]
 fn should_decode_zlib_gzip() {
-    let mut decoder = decoder::ZlibC::new(decoder::ZlibMode::Gzip).expect("create zlib decoder");
+    let mut decoder: compu::mem::Unique<_> = decoder::ZlibC::new(decoder::ZlibMode::Gzip).expect("create zlib decoder").into();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
@@ -152,7 +152,7 @@ fn should_decode_zlib_gzip() {
 #[cfg(feature = "zlib-ng")]
 #[test]
 fn should_decode_zlib_ng_gzip() {
-    let mut decoder = decoder::ZlibNg::new(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
+    let mut decoder: compu::mem::Unique<_> = decoder::ZlibNg::new(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder").into();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
@@ -163,7 +163,7 @@ fn should_decode_zlib_ng_gzip() {
 #[cfg(any(feature = "zlib-rust"))]
 #[test]
 fn should_decode_zlib_rust_gzip() {
-    let mut decoder = decoder::ZlibRust::new(decoder::ZlibMode::Gzip).expect("create zlib-rs decoder");
+    let mut decoder: compu::mem::Unique<_> = decoder::ZlibRust::new(decoder::ZlibMode::Gzip).expect("create zlib-rs decoder").into();
     for idx in 0..DATA.len() {
         test_case(idx, &mut decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
@@ -174,7 +174,7 @@ fn should_decode_zlib_rust_gzip() {
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
 
-        let mut dyn_decoder = decoder::create_content_encoding(b"gzip").unwrap();
+        let mut dyn_decoder = decoder::create_content_encoding_decoder(b"gzip").unwrap();
         test_case(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);
         #[cfg(feature = "bytes")]
         test_case_bytes(idx, &mut dyn_decoder, DATA[idx], DATA_GZIP[idx]);

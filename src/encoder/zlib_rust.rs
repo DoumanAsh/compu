@@ -3,6 +3,7 @@
 use core::{ptr, mem};
 
 use super::{Encode, EncodeOp, EncodeStatus, Encoder, ZlibOptions, ZlibStrategy};
+use crate::mem::{Unique, Box};
 
 mod sys {
     pub use zlib_rs::c_api::z_stream;
@@ -131,3 +132,10 @@ impl Drop for ZlibRust {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for ZlibRust {}
 unsafe impl Sync for ZlibRust {}
+
+impl From<ZlibRust> for Unique<dyn Encoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: ZlibRust) -> Self {
+        Unique::from_box(Box::new(value) as Box<_>)
+    }
+}

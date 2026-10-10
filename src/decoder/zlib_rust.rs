@@ -2,6 +2,7 @@
 
 use core::{mem, ptr};
 
+use crate::mem::{Box, Unique};
 use super::zlib_common::ZlibMode;
 use super::{Decode, Decoder, DecodeStatus, DecodeError};
 
@@ -127,3 +128,10 @@ impl Drop for ZlibRust {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for ZlibRust {}
 unsafe impl Sync for ZlibRust {}
+
+impl From<ZlibRust> for Unique<dyn Decoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: ZlibRust) -> Self {
+        Unique::from_box(Box::new(value) as Box<dyn Decoder + Send + Sync>)
+    }
+}

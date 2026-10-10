@@ -5,7 +5,7 @@ use compu_brotli_sys as sys;
 use core::{ptr, mem};
 
 use super::{Decode, DecodeError, DecodeStatus, Decoder};
-use crate::mem::{compu_free_with_state, compu_malloc_with_state};
+use crate::mem::{Box, Unique, compu_free_with_state, compu_malloc_with_state};
 
 fn describe_error_fn(code: i32) -> Option<&'static str> {
     let result = unsafe {
@@ -93,3 +93,10 @@ impl Drop for BrotliC {
 //These gets invalidated due to pointer usage, but in fact we're totally fine
 unsafe impl Send for BrotliC {}
 unsafe impl Sync for BrotliC {}
+
+impl From<BrotliC> for Unique<dyn Decoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: BrotliC) -> Self {
+        Unique::from_box(Box::new(value) as Box<dyn Decoder + Send + Sync>)
+    }
+}

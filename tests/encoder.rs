@@ -176,9 +176,11 @@ fn test_case_empty_final(idx: usize, encoder: &mut impl Encoder, decoder: &mut d
 #[test]
 fn should_encode_and_decode_brotli_c() {
     let mut encoder = encoder::BrotliC::new(Default::default()).expect("create brotli encoder");
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::BrotliC::new(Default::default()).expect("create brotli encoder").into();
     let mut decoder = decoder::BrotliC::new().expect("create brotli decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
 }
 
@@ -196,9 +198,11 @@ fn should_encode_and_decode_brotli_c_text() {
 #[test]
 fn should_encode_and_decode_brotli_rust() {
     let mut encoder = encoder::BrotliRust::new(Default::default());
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::BrotliRust::new(Default::default()).into();
     let mut decoder = decoder::BrotliRust::new();
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Unknown);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Unknown);
     }
 }
 
@@ -216,9 +220,11 @@ fn should_encode_and_decode_brotli_rust_text() {
 #[test]
 fn should_encode_and_decode_zstd() {
     let mut encoder = encoder::ZstdC::new(Default::default()).expect("create zstd encoder");
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::ZstdC::new(Default::default()).expect("create zstd encoder").into();
     let mut decoder = decoder::ZstdC::new(Default::default()).expect("create zstd decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Zstd);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Zstd);
     }
 }
 
@@ -247,9 +253,11 @@ fn should_encode_and_decode_zstd_max_level() {
 fn should_encode_and_decode_zlib_gzip() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
     let mut encoder = encoder::ZlibC::new(options).expect("create zlib encoder");
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::ZlibC::new(options).expect("create zlib encoder").into();
     let mut decoder = decoder::ZlibC::new(decoder::ZlibMode::Gzip).expect("create zlib decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Gzip);
     }
 }
 
@@ -258,9 +266,11 @@ fn should_encode_and_decode_zlib_gzip() {
 fn should_encode_and_decode_zlib_ng_gzip() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
     let mut encoder = encoder::ZlibNg::new(options).expect("create zlib-ng encoder");
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::ZlibNg::new(options).expect("create zlib-ng encoder").into();
     let mut decoder = decoder::ZlibNg::new(decoder::ZlibMode::Gzip).expect("create zlib-ng decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Gzip);
     }
 }
 
@@ -269,9 +279,11 @@ fn should_encode_and_decode_zlib_ng_gzip() {
 fn should_encode_and_decode_zlib_rust_gzip() {
     let options = encoder::ZlibOptions::new().mode(encoder::ZlibMode::Gzip);
     let mut encoder = encoder::ZlibRust::new(options).expect("create zlib-rust encoder");
+    let mut dyn_encoder: compu::mem::Unique<_> = encoder::ZlibRust::new(options).expect("create zlib-rust encoder").into();
     let mut decoder = decoder::ZlibRust::new(decoder::ZlibMode::Gzip).expect("create zlib-rust decoder");
     for idx in 0..DATA.len() {
         test_case(idx, &mut encoder, &mut decoder, DATA[idx], Detection::Gzip);
+        test_case(idx, &mut dyn_encoder, &mut decoder, DATA[idx], Detection::Gzip);
     }
 }
 

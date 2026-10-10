@@ -1,11 +1,11 @@
-//!Custom malloc implementation which uses Rust's allocator and provides common interface required by compression libraries
-use core::ffi::{c_uint, c_void};
+//!Memory utilities alongside custom malloc implementation which uses Rust's allocator to satisfy common interface required by compression libraries
 
 extern crate alloc;
 
 use alloc::alloc::Layout;
 pub use alloc::boxed::Box;
-use core::{mem, ptr};
+use core::{marker, mem, ptr, ops};
+use core::ffi::{c_uint, c_void};
 
 //Linux & win 32 bit are 8
 #[cfg(not(any(target_os = "macos", all(windows, target_pointer_width = "64"))))]
@@ -124,4 +124,82 @@ pub mod brotli_rust {
     }
 
     impl brotli::enc::BrotliAlloc for BrotliAllocator {}
+}
+
+///Minimal smart pointer implementation with custom dtor
+///
+///This allows to remove overhead of wrapping pointer into heap allocation for some codecs
+///The restrictive API restricts possibility to make mistake but otherwise it is the same as using `Box<dyn T>`
+///
+///## Usage
+///
+///All codecs implement conversion into `Unique<dyn Encoder + Send + Sync` or `Unique<dyn Decoder + Send + Sync>`
+///```rust
+///use compu::encoder::{self, Encoder};
+///use compu::decoder::{self, Decoder};
+///let mut encoder: compu::mem::Unique<dyn Encoder + Send + Sync> = encoder::ZstdC::new(Default::default()).expect("to create zstd encoder").into();
+///let mut decoder: compu::mem::Unique<dyn Decoder + Send + Sync> = decoder::ZstdC::new(Default::default()).expect("to create zstd decoder").into();
+///
+///encoder.reset();
+///decoder.reset();
+///```
+pub struct Unique<T: ?Sized> {
+    inner: ptr::NonNull<T>,
+    dtor_fn: fn(ptr::NonNull<T>),
+    //Based on rustc's unique impl
+    //https://github.com/rust-lang/rust/blob/76c90957b7e422c4b9c45192b0197214d7de5a54/library/core/src/ptr/unique.rs#L42
+    _marker: marker::PhantomData<T>,
+}
+
+impl<T: ?Sized> Unique<T> {
+    #[inline(always)]
+    pub(crate) fn new(inner: ptr::NonNull<T>, dtor_fn: fn(ptr::NonNull<T>)) -> Self {
+        Self {
+            inner,
+            dtor_fn,
+            _marker: marker::PhantomData,
+        }
+    }
+
+    ///Creates instance from box
+    pub fn from_box(value: Box<T>) -> Self {
+        Self::new(Box::leak(value).into(), Self::dtor_boxed)
+    }
+
+    fn dtor_boxed(value: ptr::NonNull<T>) {
+        let _ = unsafe {
+            Box::from_non_null(value)
+        };
+    }
+}
+
+impl<T: ?Sized> ops::Deref for Unique<T> {
+    type Target = T;
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            self.inner.as_ref()
+        }
+    }
+}
+
+impl<T: ?Sized> ops::DerefMut for Unique<T> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe {
+            self.inner.as_mut()
+        }
+    }
+}
+
+unsafe impl<T: Send + ?Sized> Send for Unique<T> {
+}
+unsafe impl<T: Sync + ?Sized> Sync for Unique<T> {
+}
+
+impl<T: ?Sized> Drop for Unique<T> {
+    #[inline(always)]
+    fn drop(&mut self) {
+        (self.dtor_fn)(self.inner)
+    }
 }

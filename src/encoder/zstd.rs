@@ -2,14 +2,21 @@
 
 use zstd_sys as sys;
 
-use core::ptr;
+use core::{mem, ptr};
 
 use super::{Encode, EncodeOp, EncodeStatus, Encoder};
-use crate::mem::compu_free_with_state;
-use crate::mem::compu_malloc_with_state;
+use crate::mem::{Unique, compu_free_with_state, compu_malloc_with_state};
 
 extern "C" {
     pub fn ZSTD_getErrorCode(result: usize) -> i32;
+}
+
+#[inline(always)]
+fn dtor<T: ?Sized>(value: ptr::NonNull<T>) {
+    let result = unsafe {
+        sys::ZSTD_freeCStream(value.cast().as_ptr())
+    };
+    debug_assert_eq!(result, 0);
 }
 
 #[repr(transparent)]
@@ -39,7 +46,7 @@ impl ZstdC {
     }
 }
 
-impl Encoder for ZstdC {
+impl Encoder for sys::ZSTD_CCtx {
     #[inline]
     fn encode_uninit(&mut self, input: &[u8], output: &mut [core::mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
         let mut input = sys::ZSTD_inBuffer_s {
@@ -54,7 +61,7 @@ impl Encoder for ZstdC {
         };
 
         let result = unsafe {
-            sys::ZSTD_compressStream2(self.inner.as_ptr(), &mut output, &mut input, op.into_zstd())
+            sys::ZSTD_compressStream2(self, &mut output, &mut input, op.into_zstd())
         };
         Encode {
             input_remain: input.size - input.pos,
@@ -88,19 +95,45 @@ impl Encoder for ZstdC {
     #[inline(always)]
     fn reset(&mut self) -> bool {
         let result = unsafe {
-            sys::ZSTD_CCtx_reset(self.inner.as_ptr(), sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
+            sys::ZSTD_CCtx_reset(self, sys::ZSTD_ResetDirective::ZSTD_reset_session_only)
         };
         result == 0
+    }
+
+}
+
+impl Encoder for ZstdC {
+    #[inline(always)]
+    fn encode_uninit(&mut self, input: &[u8], output: &mut [core::mem::MaybeUninit<u8>], op: EncodeOp) -> Encode {
+        unsafe {
+            self.inner.as_mut().encode_uninit(input, output, op)
+        }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) -> bool {
+        unsafe {
+            self.inner.as_mut().reset()
+        }
     }
 }
 
 impl Drop for ZstdC {
     #[inline(always)]
     fn drop(&mut self) {
-        let result = unsafe {
-            sys::ZSTD_freeCStream(self.inner.as_ptr())
+        dtor(self.inner);
+    }
+}
+
+impl From<ZstdC> for Unique<dyn Encoder + Send + Sync> {
+    #[inline(always)]
+    fn from(value: ZstdC) -> Self {
+        let ptr = unsafe {
+            ptr::NonNull::new_unchecked(value.inner.as_ptr() as *mut (dyn Encoder + Send + Sync))
         };
-        debug_assert_eq!(result, 0);
+        let result = Unique::new(ptr, dtor);
+        mem::forget(value);
+        result
     }
 }
 
