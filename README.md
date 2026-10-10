@@ -3,7 +3,7 @@
 [![Rust](https://github.com/DoumanAsh/compu/actions/workflows/rust.yml/badge.svg)](https://github.com/DoumanAsh/compu/actions/workflows/rust.yml)
 [![Crates.io](https://img.shields.io/crates/v/compu.svg)](https://crates.io/crates/compu)
 [![Documentation](https://docs.rs/compu/badge.svg)](https://docs.rs/crate/compu/)
-[![dependency status](https://deps.rs/crate/compu/1.4.2/status.svg)](https://deps.rs/crate/compu/1.4.2)
+[![dependency status](https://deps.rs/crate/compu/2.0.0/status.svg)](https://deps.rs/crate/compu/2.0.0)
 
 Rust Compression library with generic interface
 
