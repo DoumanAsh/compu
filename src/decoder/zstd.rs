@@ -140,7 +140,7 @@ impl Drop for ZstdC {
 #[derive(Copy, Clone)]
 ///ZSTD options.
 ///
-///For details refer to their crappy documentation: `http://facebook.github.io/zstd/zstd_manual.html#Chapter6`
+///For details refer to documentation: `http://facebook.github.io/zstd/zstd_manual.html#Chapter6`
 pub struct ZstdOptions {
     window_log: i32,
 }

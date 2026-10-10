@@ -17,17 +17,17 @@ This crate requires `alloc` to be available with system allocator set.
 
  Feature | Description | Encoder | Decoder |
 ---------|------------ | ------- | ------- |
- `brotli-c` | Enables `brotli` interface using C library | decoder::BrotliC | encoder::BrotliC
- `brotli-rust` | Enables `brotli` interface using Rust library | decoder::BrotliRust | encoder::BrotliRust
- `zlib` | Enables `zlib` interface using libz library | decoder::ZlibC | encoder::ZlibC
- `zlib-static` | Enables `zlib` interface using libz library with 'static' feature | decoder::ZlibC | encoder::ZlibC
- `zlib-ng` | Enables `zlib` interface using libz-ng library | decoder::ZlibNg | encoder::ZlibNg
- `zlib-rust` | Enables `zlib` interface using zlib-rs library | decoder::ZlibRust | encoder::ZlibRust
- `zstd` | Enables `zstd` interface using zstd C library | decoder::ZstdC | encoder::ZstdC
+ `brotli-c` | Enables `brotli` interface using C library | [decoder::BrotliC](https://docs.rs/compu/latest/compu/decoder/struct.BrotliC.html) | [encoder::BrotliC](https://docs.rs/compu/latest/compu/encoder/struct.BrotliC.html)
+ `brotli-rust` | Enables `brotli` interface using Rust library | [decoder::BrotliRust](https://docs.rs/compu/latest/compu/decoder/struct.BrotliRust.html) | [encoder::BrotliRust](https://docs.rs/compu/latest/compu/encoder/struct.BrotliRust.html)
+ `zlib` | Enables `zlib` interface using libz library | [decoder::ZlibC](https://docs.rs/compu/latest/compu/decoder/struct.ZlibC.html) | [encoder::ZlibC](https://docs.rs/compu/2.0.0/compu/encoder/struct.ZlibC.html)
+ `zlib-static` | Enables `zlib` interface using libz library with 'static' feature | [decoder::ZlibC](https://docs.rs/compu/latest/compu/decoder/struct.ZlibC.html) | [encoder::ZlibC](https://docs.rs/compu/latest/compu/encoder/struct.ZlibC.html)
+ `zlib-ng` | Enables `zlib` interface using libz-ng library | [decoder::ZlibNg](https://docs.rs/compu/latest/compu/decoder/struct.ZlibNg.html) | [encoder::ZlibNg](https://docs.rs/compu/latest/compu/encoder/struct.ZlibNg.html)
+ `zlib-rust` | Enables `zlib` interface using zlib-rs library | [decoder::ZlibRust](https://docs.rs/compu/latest/compu/decoder/struct.ZlibRust.html) | [encoder::ZlibRust](https://docs.rs/compu/latest/compu/encoder/struct.ZlibRust.html)
+ `zstd` | Enables `zstd` interface using zstd C library | [decoder::ZstdC](https://docs.rs/compu/latest/compu/decoder/struct.ZstdC.html) | [encoder::ZstdC](https://docs.rs/compu/latest/compu/encoder/struct.ZstdC.html)
 
 ### Misc
 
-- `bytes` - Enables `bytes` support via [decoder::DecoderExt] and [encoder::EncoderExt]
+- `bytes` - Enables `bytes` support via [decoder::DecoderExt](https://docs.rs/compu/latest/compu/decoder/trait.DecoderExt.html) and [encoder::EncoderExt](https://docs.rs/compu/latest/compu/encoder/trait.EncoderExt.html)
 
 ## Usage
 

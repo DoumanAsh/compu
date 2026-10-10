@@ -220,6 +220,8 @@ impl Default for ZstdLevel {
 
 #[derive(Copy, Clone)]
 ///ZSTD options.
+///
+///For details refer to documentation: `http://facebook.github.io/zstd/zstd_manual.html#Chapter6`
 pub struct ZstdOptions {
     level: ZstdLevel,
     strategy: ZstdStrategy,
