@@ -1,6 +1,6 @@
 [package]
 name = "compu"
-version = "2.0.1"
+version = "2.0.2"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2024"
 rust-version = "1.85.0"
@@ -18,7 +18,7 @@ include = [
 ]
 
 [dependencies.compu-brotli-sys]
-version = "1.2.0"
+version = "1.2.1"
 optional = true
 default-features = false
 
