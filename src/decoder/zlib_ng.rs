@@ -11,7 +11,7 @@ use crate::mem::{Box, Unique, compu_alloc, compu_free_with_state};
 
 const DEFAULT_INFLATE: i32 = 0;
 
-extern "C" {
+unsafe extern "C" {
     #[link_name = "zng_zError"]
     pub fn zError(code: c_int) -> *const i8;
 }

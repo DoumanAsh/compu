@@ -26,10 +26,12 @@ fn unlikely_null() -> *mut c_void {
 ///`malloc` impl with Rust allocator
 pub unsafe extern "C" fn compu_malloc(size: usize) -> *mut c_void {
     if let Ok(layout) = Layout::from_size_align(size + LAYOUT_OFFSET, MIN_ALIGN) {
-        let mem = alloc::alloc::alloc(layout);
-        if !mem.is_null() {
-            ptr::write(mem as *mut usize, size);
-            return mem.add(LAYOUT_OFFSET) as _;
+        unsafe {
+            let mem = alloc::alloc::alloc(layout);
+            if !mem.is_null() {
+                ptr::write(mem as *mut usize, size);
+                return mem.add(LAYOUT_OFFSET) as _;
+            }
         }
     }
 
@@ -40,10 +42,12 @@ pub unsafe extern "C" fn compu_malloc(size: usize) -> *mut c_void {
 ///`free` impl with Rust allocator
 pub unsafe extern "C" fn compu_free(mem: *mut c_void) {
     if !mem.is_null() {
-        let mem = (mem as *mut u8).offset(-(LAYOUT_OFFSET as isize));
-        let size = ptr::read(mem as *const usize);
-        let layout = Layout::from_size_align_unchecked(size + LAYOUT_OFFSET, MIN_ALIGN);
-        alloc::alloc::dealloc(mem, layout);
+        unsafe {
+            let mem = (mem as *mut u8).offset(-(LAYOUT_OFFSET as isize));
+            let size = ptr::read(mem as *const usize);
+            let layout = Layout::from_size_align_unchecked(size + LAYOUT_OFFSET, MIN_ALIGN);
+            alloc::alloc::dealloc(mem, layout);
+        }
     }
 }
 
@@ -53,7 +57,9 @@ pub(crate) unsafe extern "C" fn compu_malloc_with_state(
     _: *mut c_void,
     size: usize,
 ) -> *mut c_void {
-    compu_malloc(size)
+    unsafe {
+        compu_malloc(size)
+    }
 }
 
 #[allow(unused)]
@@ -67,12 +73,16 @@ pub(crate) unsafe extern "C" fn compu_alloc(
         Some(0) | None => return unlikely_null(),
         Some(size) => size,
     };
-    compu_malloc(size)
+    unsafe {
+        compu_malloc(size)
+    }
 }
 
 #[allow(unused)]
 pub(crate) unsafe extern "C" fn compu_free_with_state(_: *mut c_void, mem: *mut c_void) {
-    compu_free(mem)
+    unsafe {
+        compu_free(mem)
+    }
 }
 
 #[cfg(feature = "brotli-rust")]
@@ -168,7 +178,7 @@ impl<T: ?Sized> Unique<T> {
 
     fn dtor_boxed(value: ptr::NonNull<T>) {
         let _ = unsafe {
-            Box::from_non_null(value)
+            Box::from_raw(value.as_ptr())
         };
     }
 }

@@ -19,6 +19,9 @@ on:
       - 'tests/**.rs'
       - 'Cargo.toml'
 
+env:
+  min-rustc-version: "1.85.0"
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -61,6 +64,11 @@ jobs:
       run: |
         cargo --version
         rustc --version
+
+    - name: Check ${{env.min-rustc-version}} rustc version
+      run: |
+        rustup install ${{ env.min-rustc-version }}
+        cargo +${{ env.min-rustc-version }} check --all-features
 
     - name: Test
       run: cargo test --features brotli-c,zlib-static,zlib-ng,zstd,bytes

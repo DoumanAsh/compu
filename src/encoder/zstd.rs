@@ -7,7 +7,7 @@ use core::{mem, ptr};
 use super::{Encode, EncodeOp, EncodeStatus, Encoder};
 use crate::mem::{Unique, compu_free_with_state, compu_malloc_with_state};
 
-extern "C" {
+unsafe extern "C" {
     pub fn ZSTD_getErrorCode(result: usize) -> i32;
 }
 
